@@ -33,46 +33,55 @@ function admin_safe_text($value, $max=128){
 switch($act){
 case 'transferList':
 	$sql=" 1=1";
+	$params = [];
 	if(isset($_POST['uid']) && !empty($_POST['uid'])) {
 		$uid = intval($_POST['uid']);
-		$sql.=" AND `uid`='$uid'";
+		$sql.=" AND `uid`=:uid";
+		$params[':uid'] = $uid;
 	}
 	if(isset($_POST['type']) && !empty($_POST['type'])) {
 		$type = trim((string)$_POST['type']);
         if(!in_array($type,['alipay','wxpay','qqpay','bank'],true)) exit(json_encode(['code'=>-1,'msg'=>'转账类型不合法']));
-		$sql.=" AND `type`='$type'";
+		$sql.=" AND `type`=:type";
+		$params[':type'] = $type;
 	}
 	if(isset($_POST['channel']) && !empty($_POST['channel'])) {
 		$channel = intval($_POST['channel']);
-		$sql.=" AND `channel`='$channel'";
+		$sql.=" AND `channel`=:channel";
+		$params[':channel'] = $channel;
 	}
 	if(isset($_POST['dstatus']) && $_POST['dstatus']>-1) {
 		$dstatus = intval($_POST['dstatus']);
-		$sql.=" AND `status`={$dstatus}";
+		$sql.=" AND `status`=:dstatus";
+		$params[':dstatus'] = $dstatus;
 	}
 	if(!empty($_POST['starttime']) || !empty($_POST['endtime'])){
 		if(!empty($_POST['starttime'])){
 			$starttime = admin_safe_date($_POST['starttime']);
-			$sql.=" AND addtime>='{$starttime} 00:00:00'";
+			$sql.=" AND addtime>=:starttime";
+			$params[':starttime'] = $starttime.' 00:00:00';
 		}
 		if(!empty($_POST['endtime'])){
 			$endtime = admin_safe_date($_POST['endtime']);
-			$sql.=" AND addtime<='{$endtime} 23:59:59'";
+			$sql.=" AND addtime<=:endtime";
+			$params[':endtime'] = $endtime.' 23:59:59';
 		}
 	}
 	if(isset($_POST['value']) && !empty($_POST['value'])) {
 		$column = admin_safe_column($_POST['column'], ['biz_no','out_biz_no','uid','type','channel','account','username','money','costmoney','status','desc']);
-		$value = daddslashes($_POST['value']);
+		$value = (string)$_POST['value'];
 		if($column=='username'||$column=='desc'){
-			$sql.=" AND `{$column}` LIKE '%{$value}%'";
+			$sql.=" AND `{$column}` LIKE :value";
+			$params[':value'] = '%'.$value.'%';
 		}else{
-			$sql.=" AND `{$column}`='{$value}'";
+			$sql.=" AND `{$column}`=:value";
+			$params[':value'] = $value;
 		}
 	}
 	$offset = intval($_POST['offset']);
 	$limit = intval($_POST['limit']);
-	$total = $DB->getColumn("SELECT count(*) from pre_transfer WHERE{$sql}");
-	$list = $DB->getAll("SELECT * FROM pre_transfer WHERE{$sql} order by biz_no desc limit $offset,$limit");
+	$total = $DB->getColumn("SELECT count(*) from pre_transfer WHERE{$sql}", $params);
+	$list = $DB->getAll("SELECT * FROM pre_transfer WHERE{$sql} order by biz_no desc limit $offset,$limit", $params);
 	$list2 = [];
 	foreach($list as $row){
 		if($row['type'] == 'wxpay' && $row['status'] == 0 && !empty($row['ext'])){
@@ -93,47 +102,55 @@ break;
 
 case 'statistics':
 	$sql=" 1=1";
+	$params = [];
 	if(isset($_POST['uid']) && !empty($_POST['uid'])) {
 		$uid = intval($_POST['uid']);
-		$sql.=" AND `uid`='$uid'";
+		$sql.=" AND `uid`=:uid";
+		$params[':uid'] = $uid;
 	}
 	if(isset($_POST['type']) && !empty($_POST['type'])) {
 		$type = trim((string)$_POST['type']);
         if(!in_array($type,['alipay','wxpay','qqpay','bank'],true)) exit(json_encode(['code'=>-1,'msg'=>'转账类型不合法']));
-		$sql.=" AND `type`='$type'";
+		$sql.=" AND `type`=:type";
+		$params[':type'] = $type;
 	}
 	if(isset($_POST['dstatus']) && $_POST['dstatus']>-1) {
 		$dstatus = intval($_POST['dstatus']);
-		$sql.=" AND `status`={$dstatus}";
+		$sql.=" AND `status`=:dstatus";
+		$params[':dstatus'] = $dstatus;
 	}
 	if(!empty($_POST['starttime']) || !empty($_POST['endtime'])){
 		if(!empty($_POST['starttime'])){
 			$starttime = admin_safe_date($_POST['starttime']);
-			$sql.=" AND addtime>='{$starttime} 00:00:00'";
+			$sql.=" AND addtime>=:starttime";
+			$params[':starttime'] = $starttime.' 00:00:00';
 		}
 		if(!empty($_POST['endtime'])){
 			$endtime = admin_safe_date($_POST['endtime']);
-			$sql.=" AND addtime<='{$endtime} 23:59:59'";
+			$sql.=" AND addtime<=:endtime";
+			$params[':endtime'] = $endtime.' 23:59:59';
 		}
 	}
 	if(isset($_POST['value']) && !empty($_POST['value'])) {
 		$column = admin_safe_column($_POST['column'], ['biz_no','out_biz_no','uid','type','channel','account','username','money','costmoney','status','desc']);
-		$value = daddslashes($_POST['value']);
+		$value = (string)$_POST['value'];
 		if($column=='username'||$column=='desc'){
-			$sql.=" AND `{$column}` LIKE '%{$value}%'";
+			$sql.=" AND `{$column}` LIKE :value";
+			$params[':value'] = '%'.$value.'%';
 		}else{
-			$sql.=" AND `{$column}`='{$value}'";
+			$sql.=" AND `{$column}`=:value";
+			$params[':value'] = $value;
 		}
 	}
-	$totalMoney = $DB->getColumn("SELECT SUM(money) FROM pre_transfer WHERE{$sql} AND status<>2");
+	$totalMoney = $DB->getColumn("SELECT SUM(money) FROM pre_transfer WHERE{$sql} AND status<>2", $params);
 	$resultCount = $DB->getRow("SELECT 
     COUNT(*) AS totalCount,
     COUNT(status = 0 OR NULL) AS status0count,
     COUNT(status = 1 OR NULL) AS status1count,
     COUNT(status = 2 OR NULL) AS status2count,
     COUNT(status = 3 OR NULL) AS status3count
-    FROM pre_transfer WHERE{$sql}");
-	exit(json_encode(['code'=>0, 'data'=>['totalMoney'=>number_format($totalMoney, 2, '.', '') ?? 0.00, 'totalCount'=>$resultCount['totalCount'], 'status0count'=>$resultCount['status0count'], 'status1count'=>$resultCount['status1count'], 'status2count'=>$resultCount['status2count'], 'status3count'=>$resultCount['status3count']]]));
+    FROM pre_transfer WHERE{$sql}", $params);
+	exit(json_encode(['code'=>0, 'data'=>['totalMoney'=>number_format($totalMoney ?? 0, 2, '.', ''), 'totalCount'=>$resultCount['totalCount'], 'status0count'=>$resultCount['status0count'], 'status1count'=>$resultCount['status1count'], 'status2count'=>$resultCount['status2count'], 'status3count'=>$resultCount['status3count']]]));
 break;
 
 case 'transfer_query':

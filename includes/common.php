@@ -1,6 +1,10 @@
 <?php
 //error_reporting(0);
 error_reporting(E_ERROR | E_PARSE | E_COMPILE_ERROR);
+// Keep runtime diagnostics out of public responses; use the server error log.
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+ini_set('log_errors', '1');
 if(defined('IN_CRONLITE'))return;
 define('VERSION', '3097');
 define('DB_VERSION', '2055');

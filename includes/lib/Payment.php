@@ -643,10 +643,27 @@ class Payment {
         }
     }
 
+    // Resolve auxiliary config inside the selected plugin's final directory.
+    private static function safePluginConfig($plugin){
+        if(!is_string($plugin) || !preg_match('/^[a-zA-Z0-9_]{1,32}$/D', $plugin)){
+            throw new Exception('插件名不符合规范');
+        }
+        $base = realpath(PLUGIN_ROOT);
+        $root = realpath(PLUGIN_ROOT.$plugin);
+        $file = realpath(PLUGIN_ROOT.$plugin.'/inc/config.php');
+        if($base === false || $root === false || $file === false
+            || !is_dir($root) || !is_file($file)
+            || strpos($root, $base.DIRECTORY_SEPARATOR) !== 0
+            || strpos($file, $root.DIRECTORY_SEPARATOR) !== 0){
+            throw new Exception('插件配置路径不合法');
+        }
+        return $file;
+    }
+
     //支付宝预授权资金支付
     public static function alipayPreAuthPay($channel, $order){
         global $conf;
-        $alipay_config = require(PLUGIN_ROOT.$channel['plugin'].'/inc/config.php');
+        $alipay_config = require(self::safePluginConfig($channel['plugin']));
         $alipaySevice = new \Alipay\AlipayTradeService($alipay_config);
         $trade_no = $order['trade_no'];
         $bizContent = [
@@ -676,7 +693,7 @@ class Payment {
 
     //支付宝预授权资金解冻
     public static function alipayUnfreeze($channel, $order){
-        $alipay_config = require(PLUGIN_ROOT.$channel['plugin'].'/inc/config.php');
+        $alipay_config = require(self::safePluginConfig($channel['plugin']));
         $alipaySevice = new \Alipay\AlipayTradeService($alipay_config);
         $trade_no = $order['trade_no'];
         $bizContent = [
@@ -704,7 +721,7 @@ class Payment {
     //支付宝红包转账
     public static function alipayRedPacketTransfer($channel, $payee_user_id, $money, $order_id){
         $out_biz_no = date("YmdHis").rand(11111,99999);
-        $alipay_config = require(PLUGIN_ROOT.$channel['plugin'].'/inc/config.php');
+        $alipay_config = require(self::safePluginConfig($channel['plugin']));
         $alipaySevice = new \Alipay\AlipayTransferService($alipay_config);
         $alipaySevice->redPacketTansfer($out_biz_no, $money, $payee_user_id, $conf['sitename'], $order_id);
     }
@@ -712,7 +729,7 @@ class Payment {
     //支付宝红包资金退回
     public static function alipayRedPacketRefund($channel, $trade_no, $money){
         $out_biz_no = date("YmdHis").rand(11111,99999);
-        $alipay_config = require(PLUGIN_ROOT.$channel['plugin'].'/inc/config.php');
+        $alipay_config = require(self::safePluginConfig($channel['plugin']));
         $alipaySevice = new \Alipay\AlipayTransferService($alipay_config);
         $alipaySevice->redPacketRefund($out_biz_no, $trade_no, $money);
     }
