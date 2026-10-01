@@ -627,7 +627,7 @@ case 'testpay':
 	if(!$conf['test_pay_uid'])exit('{"code":-1,"msg":"请先配置测试支付收款商户ID"}');
 	$money=trim(daddslashes($_POST['money']));
 	$name=trim(daddslashes($_POST['name']));
-	if($money<=0 || !is_numeric($money) || !preg_match('/^[0-9.]+$/', $money))exit('{"code":-1,"msg":"金额不合法"}');
+	if(!preg_match('/^[0-9]+(?:\.[0-9]{1,2})?$/D', $money) || (float)$money <= 0)exit('{"code":-1,"msg":"金额不合法"}');
 	if($conf['pay_maxmoney']>0 && $money>$conf['pay_maxmoney'])exit('{"code":-1,"msg":"最大支付金额是'.$conf['pay_maxmoney'].'元"}');
 	if($conf['pay_minmoney']>0 && $money<$conf['pay_minmoney'])exit('{"code":-1,"msg":"最小支付金额是'.$conf['pay_minmoney'].'元"}');
 	$trade_no=date("YmdHis").rand(11111,99999);

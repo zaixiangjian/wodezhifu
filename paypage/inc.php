@@ -27,7 +27,7 @@ function check_paytype(){
 }
 
 function alipayOpenId($channel){
-	$alipay_config = require(PLUGIN_ROOT.$channel['plugin'].'/inc/config.php');
+	$alipay_config = require(\lib\Plugin::safePluginConfig($channel['plugin']));
 	try{
 		[$user_type, $user_id] = alipay_oauth($alipay_config);
 	}catch(Exception $e){

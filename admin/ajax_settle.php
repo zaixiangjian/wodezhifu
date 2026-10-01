@@ -30,34 +30,35 @@ function admin_safe_text($value, $max=128){
 }
 
 
+function sql_read_scalar($source, $key, $default=''){
+    $value = $source[$key] ?? $default;
+    if(!is_string($value) && !is_int($value)) exit('{"code":-1,"msg":"参数类型不合法"}');
+    return $value;
+}
+function sql_read_page($source, $key, $default, $min, $max){
+    $value = sql_read_scalar($source, $key, $default);
+    if(!preg_match('/^(0|[1-9][0-9]*)$/D', (string)$value) || $value < $min || $value > $max) exit('{"code":-1,"msg":"分页参数不合法"}');
+    return (int)$value;
+}
+
 switch($act){
 case 'settleList':
-	$sql=" 1=1";
-	if(isset($_POST['batch']) && !empty($_POST['batch'])) {
-		$batch = daddslashes($_POST['batch']);
-		$sql.=" AND `batch`='$batch'";
-	}
-	if(isset($_POST['uid']) && !empty($_POST['uid'])) {
-		$uid = intval($_POST['uid']);
-		$sql.=" AND `uid`='$uid'";
-	}
-	if(isset($_POST['type']) && !empty($_POST['type'])) {
-		$type = intval($_POST['type']);
-		$sql.=" AND `type`='$type'";
-	}
-	if(isset($_POST['dstatus']) && $_POST['dstatus']>-1) {
-		$dstatus = intval($_POST['dstatus']);
-		$sql.=" AND `status`={$dstatus}";
-	}
-	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		$value = daddslashes($_POST['value']);
-		$sql.=" AND (`account` like '%{$value}%' OR `username` like '%{$value}%')";
-	}
-	if(isset($_POST['transfer_status']) && in_array((string)$_POST['transfer_status'], ['3','4'], true)) $sql.=' AND transfer_status='.(int)$_POST['transfer_status'];
-	$offset = intval($_POST['offset']);
-	$limit = intval($_POST['limit']);
-	$total = $DB->getColumn("SELECT count(*) from pre_settle WHERE{$sql}");
-	$list = $DB->getAll("SELECT * FROM pre_settle WHERE{$sql} order by id desc limit $offset,$limit");
+    $sql=" 1=1"; $bindings=[];
+    foreach(['batch','uid','type','dstatus','value','transfer_status','offset','limit'] as $key) sql_read_scalar($_POST, $key);
+    if(!empty($_POST['batch'])) { $sql.=" AND `batch`=:batch"; $bindings[':batch']=$_POST['batch']; }
+    foreach(['uid','type'] as $key){
+        if(!empty($_POST[$key])) { $sql.=" AND `{$key}`=:{$key}"; $bindings[':'.$key]=(int)$_POST[$key]; }
+    }
+    if(isset($_POST['dstatus']) && $_POST['dstatus']>-1) { $sql.=" AND `status`=:status"; $bindings[':status']=(int)$_POST['dstatus']; }
+    if(!empty($_POST['value'])) {
+        $sql.=" AND (`account` LIKE :account_value OR `username` LIKE :username_value)";
+        $bindings[':account_value']='%'.$_POST['value'].'%'; $bindings[':username_value']='%'.$_POST['value'].'%';
+    }
+    if(isset($_POST['transfer_status']) && in_array((string)$_POST['transfer_status'], ['3','4'], true)) { $sql.=' AND transfer_status=:transfer_status'; $bindings[':transfer_status']=(int)$_POST['transfer_status']; }
+    $offset=sql_read_page($_POST,'offset',0,0,10000000);
+    $limit=sql_read_page($_POST,'limit',20,1,500);
+    $total=$DB->getColumn("SELECT count(*) FROM pre_settle WHERE{$sql}", $bindings);
+    $list=$DB->getAll("SELECT * FROM pre_settle WHERE{$sql} ORDER BY id DESC LIMIT $offset,$limit", $bindings);
 	$list2 = [];
 	foreach($list as $row){
 		if($row['type'] == 2 && $row['status'] == 1 && !empty($row['transfer_ext']) && time() - strtotime($row['transfer_date']) <= 86400){

@@ -16,7 +16,7 @@ if(!defined('IN_CRONLITE'))exit();
         <i class="weui-icon-warn weui-icon_msg"></i>
     </div>
     <div class="weui-msg__text-area">
-        <h2 class="weui-msg__title"><?php echo $msg?></h2>
+        <h2 class="weui-msg__title"><?php echo htmlspecialchars((string)$msg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')?></h2>
     </div>
     <div class="weui-msg__opr-area">
         <p class="weui-btn-area">

@@ -44,7 +44,8 @@ case 'testpay':
 	exit(json_encode($result));
 break;
 case 'login':
-	$type=intval($_POST['type']);
+	if(!is_string($_POST['user'] ?? null) || !is_string($_POST['pass'] ?? null) || !is_string($_POST['type'] ?? '0') || !is_string($_POST['enc'] ?? '0')) exit('{"code":-1,"msg":"登录参数不合法"}');
+	$type=intval($_POST['type'] ?? '0');
 	$user=trim($_POST['user']);
 	$pass=trim($_POST['pass']);
 	$enc_type = isset($_POST['enc']) ? $_POST['enc'] : '0';
@@ -68,7 +69,7 @@ case 'login':
 	if($type==1 && is_numeric($user) && strlen($user)<=6)$type=0;
 	if($type==1){
 		$userrow=$DB->getRow("SELECT * FROM pre_user WHERE email=:user OR phone=:user limit 1", [':user'=>$user]);
-		$pass=getMd5Pwd($pass, $userrow['uid']);
+		$pass=$userrow && $pass !== '' ? getMd5Pwd($pass, $userrow['uid']) : '';
 	}else{
 		if($conf['close_keylogin']==1)exit('{"code":-1,"msg":"未开启密钥登录，请使用账号密码登录！"}');
 		$userrow=$DB->getRow("SELECT * FROM pre_user WHERE uid=:user limit 1", [':user'=>$user]);
@@ -76,7 +77,7 @@ case 'login':
 			exit('{"code":-1,"msg":"该商户未开启密钥登录，请使用账号密码登录！"}');
 		}
 	}
-	if($userrow && ($type==0 && $pass==$userrow['key'] || $type==1 && $pass==$userrow['pwd'])) {
+	if($userrow && ($type==0 && is_string($userrow['key'] ?? null) && $userrow['key'] !== '' && $pass !== '' && hash_equals($userrow['key'], $pass) || $type==1 && is_string($userrow['pwd'] ?? null) && $userrow['pwd'] !== '' && $pass !== '' && hash_equals($userrow['pwd'], $pass))) {
 		$uid = $userrow['uid'];
 		if($alipay_uid=$_SESSION['Oauth_alipay_uid']){
 			$DB->update('user', ['alipay_uid'=>$alipay_uid], ['uid'=>$uid]);

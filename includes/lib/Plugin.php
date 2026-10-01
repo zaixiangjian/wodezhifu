@@ -17,6 +17,17 @@ class Plugin {
 		return $file;
 	}
 
+	static public function safePluginConfig($plugin){
+        if(!is_string($plugin) || !preg_match('/^[a-zA-Z0-9_]{1,32}\z/', $plugin)) throw new Exception('插件配置不可用');
+        $base = realpath(PLUGIN_ROOT);
+        $root = realpath(PLUGIN_ROOT.$plugin);
+        $file = realpath(PLUGIN_ROOT.$plugin.'/inc/config.php');
+        if($base === false || $root === false || $file === false
+            || strpos($root, $base.DIRECTORY_SEPARATOR) !== 0
+            || strpos($file, $root.DIRECTORY_SEPARATOR) !== 0 || !is_file($file)) throw new Exception('插件配置不可用');
+        return $file;
+    }
+
 	static public function getList(){
 		$dir = PLUGIN_ROOT;
 		$dirArray = [];

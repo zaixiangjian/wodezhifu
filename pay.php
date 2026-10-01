@@ -1,7 +1,7 @@
 <?php
 $nosession = true;
 $s = isset($_GET['s'])?$_GET['s']:exit('404 Not Found');
-if(!preg_match('/^[a-zA-Z0-9]+\/[0-9]+\/$/', $s)) exit('404 Not Found');
+if(!is_string($s) || !preg_match('/^[a-zA-Z0-9]{1,32}\/[0-9]{8,32}\/\z/', $s)) exit('404 Not Found');
 unset($_GET['s']);
 include("./includes/common.php");
 

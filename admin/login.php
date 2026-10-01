@@ -49,9 +49,10 @@ if(isset($_GET['act']) && $_GET['act']=='login'){
     exit(json_encode(['code'=>403, 'msg'=>'登录请求来源校验失败，请确认浏览器未禁用同站 Referer，并检查域名反代的 Host 设置']));
   }
   unset($_SESSION['admin_totp_challenge']);
+  if(!is_string($_POST['username'] ?? null) || !is_string($_POST['password'] ?? null) || !is_string($_POST['code'] ?? '') || !is_string($_POST['enc'] ?? '0')) exit(json_encode(['code'=>-1,'msg'=>'登录参数不合法']));
   $username = trim($_POST['username']);
   $password = trim($_POST['password']);
-  $code = trim($_POST['code']);
+  $code = trim($_POST['code'] ?? '');
   $enc_type = isset($_POST['enc']) ? $_POST['enc'] : '0';
   if(empty($username) || empty($password)){
     exit(json_encode(['code'=>-1,'msg'=>'用户名或密码不能为空']));
@@ -72,7 +73,7 @@ if(isset($_GET['act']) && $_GET['act']=='login'){
     }
     $password = $plain;
   }
-  if($username == $conf['admin_user'] && $password == $conf['admin_pwd']){
+  if(is_string($conf['admin_user'] ?? null) && $conf['admin_user'] !== '' && is_string($conf['admin_pwd'] ?? null) && $conf['admin_pwd'] !== '' && $password !== '' && hash_equals($conf['admin_user'], $username) && hash_equals($conf['admin_pwd'], $password)){
     if (epay_totp_enabled($conf)) {
       if(!epay_totp_secret_valid($conf['totp_secret'] ?? null)) exit(json_encode(['code'=>-1, 'msg'=>'动态口令配置异常，请联系管理员']));
       session_regenerate_id(true);

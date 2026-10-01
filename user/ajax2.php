@@ -1,6 +1,7 @@
 <?php
 include("../includes/common.php");
 if($islogin2==1){}else exit('{"code":-3,"msg":"No Login"}');
+if(isset($userrow['status']) && ($userrow['status'] === 0 || $userrow['status'] === '0')) exit('{"code":403,"msg":"商户已被禁用"}');
 $act=isset($_GET['act'])?daddslashes($_GET['act']):null;
 
 if(!checkRefererHost() && !checkwechat())exit('{"code":403}');
@@ -589,20 +590,21 @@ case 'createRsaPair':
 	}
 break;
 case 'edit_pwd':
-	$oldpwd=trim($_POST['oldpwd']);
+	if(!is_string($_POST['oldpwd'] ?? '') || !is_string($_POST['newpwd'] ?? null) || !is_string($_POST['newpwd2'] ?? null)) exit('{"code":-1,"msg":"密码参数不合法"}');
+	$oldpwd=trim($_POST['oldpwd'] ?? '');
 	$newpwd=trim($_POST['newpwd']);
 	$newpwd2=trim($_POST['newpwd2']);
 
 	if(!empty($userrow['pwd']) && $oldpwd==null || $newpwd==null || $newpwd2==null){
 		exit('{"code":-1,"msg":"请确保每项都不为空"}');
 	}
-	if(!empty($userrow['pwd']) && getMd5Pwd($oldpwd, $uid)!=$userrow['pwd']){
+	if(!empty($userrow['pwd']) && (!is_string($userrow['pwd']) || !hash_equals($userrow['pwd'], getMd5Pwd($oldpwd, $uid)))){
 		exit('{"code":-1,"msg":"旧密码不正确"}');
 	}
-	if($newpwd!=$newpwd2){
+	if($newpwd !== $newpwd2){
 		exit('{"code":-1,"msg":"两次输入密码不一致！"}');
 	}
-	if($oldpwd==$newpwd){
+	if($oldpwd === $newpwd){
 		exit('{"code":-1,"msg":"旧密码和新密码相同！"}');
 	}
 	if (strlen($newpwd) < 6) {
@@ -1336,11 +1338,12 @@ case 'refund_query': //退款查询
 	exit(json_encode($result));
 break;
 case 'refund_submit': //确认退款
+	if(!is_string($_POST['pwd'] ?? null)) exit('{"code":-1,"msg":"密码参数不合法"}');
 	$trade_no=user_safe_token($_POST['trade_no'], '订单号');
 	$pwd=trim($_POST['pwd']);
 	$money = trim($_POST['money']);
 	if(!is_numeric($money) || !preg_match('/^[0-9]+(\.[0-9]{1,2})?$/', $money))exit('{"code":-1,"msg":"金额输入错误"}');
-	if(getMd5Pwd($pwd, $userrow['uid'])!=$userrow['pwd'])
+	if($pwd === '' || !is_string($userrow['pwd'] ?? null) || $userrow['pwd'] === '' || !hash_equals($userrow['pwd'], getMd5Pwd($pwd, $userrow['uid'])))
 		exit('{"code":-1,"msg":"登录密码输入错误！"}');
 	
 	$refund_no = date("YmdHis").rand(11111,99999);

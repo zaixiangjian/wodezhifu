@@ -61,9 +61,17 @@ function display_psstatus($status){
 	}
 }
 
+function user_export_scalar($value){
+    if(!is_string($value) && !is_int($value)) exit('param error');
+    return $value;
+}
+
 switch($act){
 
 case 'order':
+foreach(['paytype','channel','subchannel','dstatus','starttime','endtime','kw','type','rid'] as $key){
+    if(isset($_GET[$key])) user_export_scalar($_GET[$key]);
+}
 $paytype = [];
 $rs = $DB->getAll("SELECT * FROM pre_type");
 foreach($rs as $row){
@@ -71,31 +79,33 @@ foreach($rs as $row){
 }
 unset($rs);
 
-$bindings = [];
-$sql=" A.`uid`='$uid'";
+$bindings = [':owner_uid'=>(int)$uid];
+$sql=" A.`uid`=:owner_uid";
 if(isset($_GET['paytype']) && !empty($_GET['paytype'])) {
 	$type = intval($_GET['paytype']);
-	$sql.=" AND A.`type`='$type'";
+	$sql.=" AND A.`type`=:filter_type"; $bindings[':filter_type']=$type;
 }elseif(isset($_GET['channel']) && !empty($_GET['channel'])) {
 	$channel = intval($_GET['channel']);
-	$sql.=" AND A.`channel`='$channel'";
+	$sql.=" AND A.`channel`=:filter_channel"; $bindings[':filter_channel']=$channel;
 }elseif(isset($_GET['subchannel']) && !empty($_GET['subchannel'])) {
 	$subchannel = trim($_GET['subchannel']);
 	$subchannel = explode('|', $subchannel);
 	$subchannel = array_map('intval', $subchannel);
-	$sql.=" AND A.`subchannel` IN (".implode(",", $subchannel).")";
+    $marks=[];
+    foreach($subchannel as $index=>$id){ $mark=':subchannel_'.$index; $marks[]=$mark; $bindings[$mark]=$id; }
+    $sql.=" AND A.`subchannel` IN (".implode(',', $marks).")";
 }
 if(isset($_GET['dstatus']) && $_GET['dstatus']>-1) {
 	$dstatus = intval($_GET['dstatus']);
-	$sql.=" AND A.status='{$dstatus}'";
+	$sql.=" AND A.`status`=:filter_status"; $bindings[':filter_status']=$dstatus;
 }
 $starttime = user_export_date('starttime');
 $endtime = user_export_date('endtime');
 if($starttime !== ''){
-	$sql.=" AND A.addtime>='{$starttime} 00:00:00'";
+	$sql.=" AND A.addtime>=:filter_starttime"; $bindings[':filter_starttime']=$starttime.' 00:00:00';
 }
 if($endtime !== ''){
-	$sql.=" AND A.addtime<='{$endtime} 23:59:59'";
+	$sql.=" AND A.addtime<=:filter_endtime"; $bindings[':filter_endtime']=$endtime.' 23:59:59';
 }
 if(isset($_GET['kw']) && $_GET['kw'] !== '') {
 	$search_type = isset($_GET['type']) ? intval($_GET['type']) : 0;
@@ -135,6 +145,9 @@ echo $file;
 break;
 
 case 'complain':
+foreach(['paytype','channel','subchannel','dstatus','starttime','endtime','kw','type','rid'] as $key){
+    if(isset($_GET[$key])) user_export_scalar($_GET[$key]);
+}
 $paytype = [];
 $rs = $DB->getAll("SELECT * FROM pre_type");
 foreach($rs as $row){
@@ -142,26 +155,26 @@ foreach($rs as $row){
 }
 unset($rs);
 
-$bindings = [];
-$sql=" A.uid=$uid";
+$bindings = [':owner_uid'=>(int)$uid];
+$sql=" A.uid=:owner_uid";
 if(isset($_GET['paytype']) && !empty($_GET['paytype'])) {
 	$paytypen = intval($_GET['paytype']);
-	$sql.=" AND A.`paytype`='$paytypen'";
+	$sql.=" AND A.`paytype`=:filter_paytypen"; $bindings[':filter_paytypen']=$paytypen;
 }elseif(isset($_GET['channel']) && !empty($_GET['channel'])) {
 	$channel = intval($_GET['channel']);
-	$sql.=" AND A.`channel`='$channel'";
+	$sql.=" AND A.`channel`=:filter_channel"; $bindings[':filter_channel']=$channel;
 }
 if(isset($_GET['dstatus']) && $_GET['dstatus']>-1) {
 	$dstatus = intval($_GET['dstatus']);
-	$sql.=" AND A.`status`={$dstatus}";
+	$sql.=" AND A.`status`=:filter_status"; $bindings[':filter_status']=$dstatus;
 }
 $starttime = user_export_date('starttime');
 $endtime = user_export_date('endtime');
 if($starttime !== ''){
-	$sql.=" AND A.addtime>='{$starttime} 00:00:00'";
+	$sql.=" AND A.addtime>=:filter_starttime"; $bindings[':filter_starttime']=$starttime.' 00:00:00';
 }
 if($endtime !== ''){
-	$sql.=" AND A.addtime<='{$endtime} 23:59:59'";
+	$sql.=" AND A.addtime<=:filter_endtime"; $bindings[':filter_endtime']=$endtime.' 23:59:59';
 }
 if(isset($_GET['kw']) && $_GET['kw'] !== '') {
 	$search_type = isset($_GET['type']) ? intval($_GET['type']) : 0;
@@ -193,6 +206,9 @@ echo $file;
 break;
 
 case 'psorder':
+foreach(['paytype','channel','subchannel','dstatus','starttime','endtime','kw','type','rid'] as $key){
+    if(isset($_GET[$key])) user_export_scalar($_GET[$key]);
+}
 $paytype = [];
 $rs = $DB->getAll("SELECT * FROM pre_type");
 foreach($rs as $row){
@@ -200,23 +216,23 @@ foreach($rs as $row){
 }
 unset($rs);
 
-$bindings = [];
-$sql=" rid in (select id from pre_psreceiver where uid='$uid' and subchannel>0)";
+$bindings = [':owner_uid'=>(int)$uid];
+$sql=" rid in (select id from pre_psreceiver where uid=:owner_uid and subchannel>0)";
 if(isset($_GET['rid']) && !empty($_GET['rid'])) {
 	$rid = intval($_GET['rid']);
-	$sql.=" AND A.`rid`='$rid'";
+	$sql.=" AND A.`rid`=:filter_rid"; $bindings[':filter_rid']=$rid;
 }
 if(isset($_GET['dstatus']) && $_GET['dstatus']>-1) {
 	$dstatus = intval($_GET['dstatus']);
-	$sql.=" AND A.`status`={$dstatus}";
+	$sql.=" AND A.`status`=:filter_status"; $bindings[':filter_status']=$dstatus;
 }
 $starttime = user_export_date('starttime');
 $endtime = user_export_date('endtime');
 if($starttime !== ''){
-	$sql.=" AND A.addtime>='{$starttime} 00:00:00'";
+	$sql.=" AND A.addtime>=:filter_starttime"; $bindings[':filter_starttime']=$starttime.' 00:00:00';
 }
 if($endtime !== ''){
-	$sql.=" AND A.addtime<='{$endtime} 23:59:59'";
+	$sql.=" AND A.addtime<=:filter_endtime"; $bindings[':filter_endtime']=$endtime.' 23:59:59';
 }
 if(isset($_GET['kw']) && $_GET['kw'] !== '') {
 	$search_type = isset($_GET['type']) ? intval($_GET['type']) : 0;

@@ -30,23 +30,33 @@ function admin_safe_text($value, $max=128){
 }
 
 
+function sql_read_scalar($source, $key, $default=''){
+    $value = $source[$key] ?? $default;
+    if(!is_string($value) && !is_int($value)) exit('{"code":-1,"msg":"参数类型不合法"}');
+    return $value;
+}
+function sql_read_page($source, $key, $default, $min, $max){
+    $value = sql_read_scalar($source, $key, $default);
+    if(!preg_match('/^(0|[1-9][0-9]*)$/D', (string)$value) || $value < $min || $value > $max) exit('{"code":-1,"msg":"分页参数不合法"}');
+    return (int)$value;
+}
+
 switch($act){
 
 case 'receiverList':
-	$sql = " 1=1";
-	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		$value=daddslashes($_POST['value']);
-		$column = admin_safe_column($_POST['column'], ['id','uid','channel','subchannel','account','name','info','mode','status']);
-		if($column == 'info'){
-			$sql .= " AND (A.`info` LIKE '%{$value}%' OR A.`account` LIKE '%{$value}%')";
-		}else{
-			$sql .= " AND A.`{$column}`='{$value}'";
-		}
-	}
-	$offset = intval($_POST['offset']);
-	$limit = intval($_POST['limit']);
-	$total = $DB->getColumn("SELECT count(*) from pre_psreceiver A WHERE{$sql}");
-	$list = $DB->getAll("SELECT A.*,B.name channelname,C.name subchannelname,C.apply_id FROM pre_psreceiver A LEFT JOIN pre_channel B ON A.channel=B.id LEFT JOIN pre_subchannel C ON A.subchannel=C.id WHERE{$sql} order by A.id desc limit $offset,$limit");
+    $sql=" 1=1"; $bindings=[];
+    foreach(['value','column','offset','limit'] as $key) sql_read_scalar($_POST, $key);
+    if(!empty($_POST['value'])) {
+        $column=admin_safe_column($_POST['column'] ?? '', ['id','uid','channel','subchannel','account','name','info','mode','status']);
+        if($column=='info') {
+            $sql.=" AND (A.`info` LIKE :info_value OR A.`account` LIKE :account_value)";
+            $bindings[':info_value']='%'.$_POST['value'].'%'; $bindings[':account_value']='%'.$_POST['value'].'%';
+        }else { $sql.=" AND A.`{$column}`=:value"; $bindings[':value']=$_POST['value']; }
+    }
+    $offset=sql_read_page($_POST,'offset',0,0,10000000);
+    $limit=sql_read_page($_POST,'limit',20,1,500);
+    $total=$DB->getColumn("SELECT count(*) FROM pre_psreceiver A WHERE{$sql}", $bindings);
+    $list=$DB->getAll("SELECT A.*,B.name channelname,C.name subchannelname,C.apply_id FROM pre_psreceiver A LEFT JOIN pre_channel B ON A.channel=B.id LEFT JOIN pre_subchannel C ON A.subchannel=C.id WHERE{$sql} ORDER BY A.id DESC LIMIT $offset,$limit", $bindings);
 	exit(json_encode(['total'=>$total, 'rows'=>$list]));
 break;
 case 'orderList':
@@ -59,34 +69,20 @@ case 'orderList':
 	}
 	unset($rs);
 
-	$sql=" 1=1";
-	if(isset($_POST['rid']) && !empty($_POST['rid'])) {
-		$rid = intval($_POST['rid']);
-		$sql.=" AND A.`rid`='$rid'";
-	}
-	if(isset($_POST['dstatus']) && $_POST['dstatus']>-1) {
-		$dstatus = intval($_POST['dstatus']);
-		$sql.=" AND A.`status`={$dstatus}";
-	}
-	if(!empty($_POST['starttime']) || !empty($_POST['endtime'])){
-		if(!empty($_POST['starttime'])){
-			$starttime = admin_safe_date($_POST['starttime']);
-			$sql.=" AND A.addtime>='{$starttime} 00:00:00'";
-		}
-		if(!empty($_POST['endtime'])){
-			$endtime = admin_safe_date($_POST['endtime']);
-			$sql.=" AND A.addtime<='{$endtime} 23:59:59'";
-		}
-	}
-	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		$column = admin_safe_column($_POST['column'], ['id','rid','trade_no','api_trade_no','type','money','status','settle_no']);
-		$value = daddslashes($_POST['value']);
-		$sql.=" AND A.`{$column}`='{$value}'";
-	}
-	$offset = intval($_POST['offset']);
-	$limit = intval($_POST['limit']);
-	$total = $DB->getColumn("SELECT count(*) from pre_psorder A LEFT JOIN pre_psreceiver B ON A.rid=B.id LEFT JOIN pre_channel C ON B.channel=C.id WHERE{$sql}");
-	$list = $DB->getAll("SELECT A.*,C.id channelid,C.name channelname,C.type,D.realmoney ordermoney FROM pre_psorder A LEFT JOIN pre_psreceiver B ON A.rid=B.id LEFT JOIN pre_channel C ON B.channel=C.id LEFT JOIN pre_order D ON D.trade_no=A.trade_no WHERE{$sql} order by A.id desc limit $offset,$limit");
+    $sql=" 1=1"; $bindings=[];
+    foreach(['rid','dstatus','starttime','endtime','value','column','offset','limit'] as $key) sql_read_scalar($_POST, $key);
+    if(!empty($_POST['rid'])) { $sql.=" AND A.`rid`=:rid"; $bindings[':rid']=(int)$_POST['rid']; }
+    if(isset($_POST['dstatus']) && $_POST['dstatus']>-1) { $sql.=" AND A.`status`=:status"; $bindings[':status']=(int)$_POST['dstatus']; }
+    if(!empty($_POST['starttime'])) { $sql.=" AND A.addtime>=:starttime"; $bindings[':starttime']=admin_safe_date($_POST['starttime']).' 00:00:00'; }
+    if(!empty($_POST['endtime'])) { $sql.=" AND A.addtime<=:endtime"; $bindings[':endtime']=admin_safe_date($_POST['endtime']).' 23:59:59'; }
+    if(!empty($_POST['value'])) {
+        $column=admin_safe_column($_POST['column'] ?? '', ['id','rid','trade_no','api_trade_no','type','money','status','settle_no']);
+        $sql.=" AND A.`{$column}`=:value"; $bindings[':value']=$_POST['value'];
+    }
+    $offset=sql_read_page($_POST,'offset',0,0,10000000);
+    $limit=sql_read_page($_POST,'limit',20,1,500);
+    $total=$DB->getColumn("SELECT count(*) FROM pre_psorder A LEFT JOIN pre_psreceiver B ON A.rid=B.id LEFT JOIN pre_channel C ON B.channel=C.id WHERE{$sql}", $bindings);
+    $list=$DB->getAll("SELECT A.*,C.id channelid,C.name channelname,C.type,D.realmoney ordermoney FROM pre_psorder A LEFT JOIN pre_psreceiver B ON A.rid=B.id LEFT JOIN pre_channel C ON B.channel=C.id LEFT JOIN pre_order D ON D.trade_no=A.trade_no WHERE{$sql} ORDER BY A.id DESC LIMIT $offset,$limit", $bindings);
 	$list2 = [];
 	foreach($list as $row){
 		$row['typename'] = $paytypes[$row['type']];
@@ -100,8 +96,8 @@ break;
 case 'get_receiver':
 	$id=intval($_GET['id']);
 	$row=$DB->find('psreceiver', '*', ['id'=>$id]);
-	$row['info'] = !empty($row['info']) ? json_decode($row['info'], true) : [['account'=>$row['account'], 'name'=>$row['name'], 'rate'=>$row['rate']]];
 	if(!$row) exit('{"code":-1,"msg":"当前分账规则不存在！"}');
+	$row['info'] = !empty($row['info']) ? json_decode($row['info'], true) : [['account'=>$row['account'], 'name'=>$row['name'], 'rate'=>$row['rate']]];
 	exit(json_encode(['code'=>0, 'data'=>$row]));
 break;
 
@@ -278,32 +274,15 @@ case 'operation': //批量操作订单
 break;
 
 case 'statistics':
-    $sql = " 1=1";
-    if(isset($_POST['rid']) && !empty($_POST['rid'])) {
-        $rid = intval($_POST['rid']);
-        $sql .= " AND rid='$rid'";
-    }
-    if(isset($_POST['dstatus']) && $_POST['dstatus']>-1) {
-        $dstatus = intval($_POST['dstatus']);
-        $sql .= " AND status={$dstatus}";
-    }
-    if(!empty($_POST['starttime']) || !empty($_POST['endtime'])){
-        if(!empty($_POST['starttime'])){
-            $starttime = admin_safe_date($_POST['starttime']);
-            $sql .= " AND addtime>='{$starttime} 00:00:00'";
-        }
-        if(!empty($_POST['endtime'])){
-            $endtime = admin_safe_date($_POST['endtime']);
-            $sql .= " AND addtime<='{$endtime} 23:59:59'";
-        }
-    }
-    if(isset($_POST['value']) && !empty($_POST['value'])) {
-        $column = admin_safe_column($_POST['column'], ['id','rid','trade_no','api_trade_no','type','money','status','settle_no']);
-        if($column == 'money'){
-            $sql .= " AND `{$column}`='".floatval($_POST['value'])."'";
-        }else{
-            $sql .= " AND `{$column}`='".daddslashes($_POST['value'])."'";
-        }
+    $sql=" 1=1"; $bindings=[];
+    foreach(['rid','dstatus','starttime','endtime','value','column','offset','limit'] as $key) sql_read_scalar($_POST, $key);
+    if(!empty($_POST['rid'])) { $sql.=" AND A.`rid`=:rid"; $bindings[':rid']=(int)$_POST['rid']; }
+    if(isset($_POST['dstatus']) && $_POST['dstatus']>-1) { $sql.=" AND A.`status`=:status"; $bindings[':status']=(int)$_POST['dstatus']; }
+    if(!empty($_POST['starttime'])) { $sql.=" AND A.addtime>=:starttime"; $bindings[':starttime']=admin_safe_date($_POST['starttime']).' 00:00:00'; }
+    if(!empty($_POST['endtime'])) { $sql.=" AND A.addtime<=:endtime"; $bindings[':endtime']=admin_safe_date($_POST['endtime']).' 23:59:59'; }
+    if(!empty($_POST['value'])) {
+        $column=admin_safe_column($_POST['column'] ?? '', ['id','rid','trade_no','api_trade_no','type','money','status','settle_no']);
+        $sql.=" AND A.`{$column}`=:value"; $bindings[':value']=$column=='money' ? (float)$_POST['value'] : $_POST['value'];
     }
 
     $result = $DB->getRow("SELECT 
@@ -313,7 +292,7 @@ case 'statistics':
         COUNT(*) AS totalCount,
         SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS successCount,
         SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END) AS failCount
-        FROM pre_psorder WHERE {$sql}");
+        FROM pre_psorder A WHERE {$sql}", $bindings);
 
     $successRate = $result['totalCount'] > 0 ? round(($result['successCount'] / $result['totalCount']) * 100, 2) : 0;
 
