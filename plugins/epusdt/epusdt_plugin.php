@@ -60,7 +60,9 @@ class epusdt_plugin
     private static function createPayment(): array
     {
         global $siteurl, $channel, $order, $conf, $DB;
-        foreach ($channel as $value) { if ($value !== null && !is_scalar($value)) return ['type'=>'error','msg'=>'Invalid channel configuration']; }
+        foreach (['appurl', 'appid', 'appkey'] as $field) {
+            if (!isset($channel[$field]) || !is_scalar($channel[$field])) return ['type'=>'error','msg'=>'Invalid channel configuration'];
+        }
         if (!is_string($order['realmoney']) && !is_int($order['realmoney'])) return ['type'=>'error','msg'=>'Invalid fiat amount'];
         if (!preg_match('/\A[0-9]+(?:\.[0-9]{1,2})?\z/', (string)$order['realmoney'])) return ['type'=>'error','msg'=>'Invalid fiat amount'];
 

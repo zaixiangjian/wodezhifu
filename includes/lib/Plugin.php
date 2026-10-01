@@ -75,6 +75,10 @@ class Plugin {
 				}
 			}
 
+			if(in_array($func, ['submit','mapi','checkpay','getpayurl'], true) && !PaymentEligibility::allows($order, $channel['plugin'])){
+				return $func === 'getpayurl' ? ['type'=>'json','data'=>['code'=>-1,'msg'=>PaymentEligibility::MESSAGE]] : ['type'=>'error','msg'=>PaymentEligibility::MESSAGE];
+			}
+
 			if($order && $func=='checkpay'){
 				$selfurl = is_self_url($order['payurl']);
 				if($conf['wxpay_qrpaylogin'] == 1 && !$selfurl && checkwechat()){
@@ -159,6 +163,8 @@ class Plugin {
 	}
 
 	static public function loadClass($plugin, $func, $trade_no){
+		global $order;
+		if(in_array($func, ['submit','mapi'], true) && !PaymentEligibility::allows($order, $plugin)) return ['type'=>'error','msg'=>PaymentEligibility::MESSAGE];
 		$filename = self::safePluginFile($plugin);
 		$classname = '\\'.$plugin.'_plugin';
         if (file_exists($filename)) {

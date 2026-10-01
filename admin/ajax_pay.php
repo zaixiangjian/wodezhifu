@@ -602,6 +602,7 @@ case 'getSuccessRate':
 break;
 
 case 'testpay':
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') exit('{"code":405,"msg":"Method Not Allowed"}');
 	$channel=intval($_POST['channel']);
 	$subchannel=intval($_POST['subchannel']);
 	$param=!empty($_POST['param'])?trim($_POST['param']):null;
@@ -611,6 +612,17 @@ case 'testpay':
 	if($subchannel > 0){
 		if(!$DB->getRow("select * from pre_subchannel where id='$subchannel' limit 1")) exit('{"code":-1,"msg":"当前子通道不存在！"}');
 	}
+
+    $testtype = $DB->getRow('SELECT status FROM pre_type WHERE id=:id LIMIT 1', [':id'=>(int)$row['type']]);
+    if (!$testtype) exit('{"code":-1,"msg":"支付方式不存在"}');
+    if ($subchannel > 0) {
+        $testsub = $DB->getRow('SELECT channel,uid,status FROM pre_subchannel WHERE id=:id LIMIT 1', [':id'=>$subchannel]);
+        if (!$testsub || (int)$testsub['channel'] !== $channel || (int)$testsub['uid'] !== (int)$conf['test_pay_uid']) exit('{"code":-1,"msg":"当前子通道已关闭或不匹配，无法测试支付"}');
+    }
+    $testuser = $DB->getRow('SELECT status,pay FROM pre_user WHERE uid=:uid LIMIT 1', [':uid'=>(int)$conf['test_pay_uid']]);
+    if (!$testuser || (int)$testuser['status'] === 0 || (int)$testuser['pay'] === 0
+        || ((int)$testuser['pay'] === 2 && (int)($conf['user_review'] ?? 0) === 1)) exit(json_encode(['code'=>-1,'msg'=>\lib\PaymentEligibility::MESSAGE], JSON_UNESCAPED_UNICODE));
+
 	if(empty($row['config']))exit('{"code":-1,"msg":"请先配置好密钥"}');
 	if(!$conf['test_pay_uid'])exit('{"code":-1,"msg":"请先配置测试支付收款商户ID"}');
 	$money=trim(daddslashes($_POST['money']));
@@ -622,6 +634,7 @@ case 'testpay':
 	$return_url=$siteurl.'user/test.php?ok=1&trade_no='.$trade_no;
 	$domain=getdomain($return_url);
 	if(!$DB->exec("INSERT INTO `pre_order` (`trade_no`,`out_trade_no`,`uid`,`tid`,`addtime`,`name`,`money`,`type`,`channel`,`subchannel`,`realmoney`,`getmoney`,`notify_url`,`return_url`,`domain`,`ip`,`param`,`status`) VALUES (:trade_no, :out_trade_no, :uid, 3, NOW(), :name, :money, :type, :channel, :subchannel, :realmoney, :getmoney, :notify_url, :return_url, :domain, :clientip, :param, 0)", [':trade_no'=>$trade_no, ':out_trade_no'=>$trade_no, ':uid'=>$conf['test_pay_uid'], ':name'=>$name, ':money'=>$money, ':type'=>$row['type'], ':channel'=>$channel, ':subchannel'=>$subchannel, ':realmoney'=>$money, ':getmoney'=>$money, ':notify_url'=>$return_url, ':return_url'=>$return_url, ':domain'=>$domain, ':clientip'=>$clientip, ':param'=>$param]))exit('{"code":-1,"msg":"创建订单失败，请返回重试！"}');
+    \lib\PaymentEligibility::issueAdminTest(['trade_no'=>$trade_no, 'tid'=>3, 'uid'=>(int)$conf['test_pay_uid'], 'type'=>(int)$row['type'], 'channel'=>$channel, 'subchannel'=>$subchannel]);
 	$result = ['code'=>0, 'msg'=>'succ', 'url'=>'./testsubmit.php?trade_no='.$trade_no];
 	exit(json_encode($result));
 break;

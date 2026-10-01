@@ -97,7 +97,7 @@ if(checkwechat()){
 <div class="w1080 immediate-pay12">
   <div class="immediate-pay12-right">
       <span>需支付：<strong><?php echo $row['realmoney']?$row['realmoney']:$row['money']?></strong>元<?php if($row['realmoney'] && $row['realmoney']!=$row['money'])echo '（包含'.($row['realmoney']-$row['money']).'元手续费）';?></span>
-        <a class="immediate_pay">立即支付</a>
+        <?php if($paytype){?><a class="immediate_pay">立即支付</a><?php }else{?><span>当前暂无可用支付方式，请稍后重试</span><?php }?>
     </div>
 </div>
 <div class="mt_agree">

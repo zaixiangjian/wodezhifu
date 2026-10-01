@@ -71,7 +71,11 @@ class epusdtapi_plugin
     private static function createPayment(): array
     {
         global $siteurl, $channel, $order, $conf, $DB;
-        foreach ($channel as $value) { if ($value !== null && !is_scalar($value)) return ['type'=>'error','msg'=>'Invalid channel configuration']; }
+        // Loader metadata (notably apptype) may be an array; validate only consumed config.
+        foreach (['appurl', 'appid', 'appkey'] as $key) {
+            if (!isset($channel[$key]) || !is_scalar($channel[$key])) return ['type'=>'error','msg'=>'Invalid channel configuration'];
+        }
+        if (isset($channel['fiat']) && !is_scalar($channel['fiat'])) return ['type'=>'error','msg'=>'Invalid channel configuration'];
         if (!is_string($order['realmoney']) && !is_int($order['realmoney'])) return ['type'=>'error','msg'=>'Invalid fiat amount'];
         if (!preg_match('/\A[0-9]+(?:\.[0-9]{1,2})?\z/', (string)$order['realmoney'])) return ['type'=>'error','msg'=>'Invalid fiat amount'];
 
@@ -86,7 +90,7 @@ class epusdtapi_plugin
         $parameter = [
             'pid'          => trim((string)$channel['appid']),
             'order_id'     => TRADE_NO,
-            'currency'     => strtolower(trim((string)($channel['fiat'] ?: 'cny'))),
+            'currency'     => strtolower(trim((string)(($channel['fiat'] ?? '') ?: 'cny'))),
             'token'        => strtolower($token),
             'network'      => strtolower($network),
             'amount'       => self::formatAmount($order['realmoney']),

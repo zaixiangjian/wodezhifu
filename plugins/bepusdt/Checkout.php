@@ -20,6 +20,8 @@ final class bepusdtCheckout
             if ((string)$DB->getColumn('SELECT GET_LOCK(:name, 10)', [':name'=>$lock]) !== '1') { $lock=null; return $error; }
             $fresh = $DB->getRow('SELECT A.*, B.name AS typename, B.showname AS typeshowname FROM pre_order A LEFT JOIN pre_type B ON A.type=B.id WHERE A.trade_no=:trade_no', [':trade_no'=>TRADE_NO]);
             if (!is_array($fresh) || !is_string($fresh['typename'] ?? null) || $fresh['typename'] === '') return $error;
+            require_once __DIR__.'/../../includes/lib/PaymentEligibility.php';
+            if (!\lib\PaymentEligibility::allows($fresh, 'bepusdt')) return ['type'=>'error','msg'=>\lib\PaymentEligibility::MESSAGE];
             $order = $fresh;
             if (!empty($fresh['payurl'])) return self::safeUrl($fresh['payurl']) ? ['type'=>'jump','url'=>$fresh['payurl']] : $error;
             $raw = $fresh['ext'] ?? null;

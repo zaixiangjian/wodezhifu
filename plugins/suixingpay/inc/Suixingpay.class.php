@@ -127,7 +127,7 @@ class Suixingpay
 			throw new Exception('验签失败，平台公钥错误');
 		}
 		$result = openssl_verify($data, base64_decode($sign), $res);
-		return $result;
+		return $result === 1;
 	}
 
 	private function getMillisecond()

@@ -276,6 +276,7 @@ class Channel {
 				}
 				//获取轮询组对应通道
 				$row=$DB->getRow("SELECT plugin,status,rate,apptype,mode,paymin,paymax,timestart,timestop FROM pre_channel WHERE id='$channel' LIMIT 1");
+				if(!$row || (int)$row['status'] !== 1) return false;
 				if(empty($money_rate))$money_rate = $row['rate'];
 				return ['typeid'=>$typeid, 'typename'=>$typename, 'plugin'=>$row['plugin'], 'channel'=>$channel, 'subchannel'=>0, 'rate'=>$money_rate, 'apptype'=>$row['apptype'], 'mode'=>$row['mode'], 'paymin'=>$row['paymin'], 'paymax'=>$row['paymax'],'timestart'=>$row['timestart'],'timestop'=>$row['timestop']];
 			}
@@ -292,6 +293,7 @@ class Channel {
 	// 获取当前商户可用支付方式
 	static public function getTypes($uid, $gid=0){
 		global $DB;
+		$groupinfo = null;
 		if(checkmobile()==true){
 			$sqls = " AND (device=0 OR device=2)";
 		}else{
@@ -305,13 +307,17 @@ class Channel {
 		if($gid>0)$groupinfo=$DB->getColumn("SELECT info FROM pre_group WHERE gid='$gid' LIMIT 1");
 		if(!$groupinfo)$groupinfo=$DB->getColumn("SELECT info FROM pre_group WHERE gid=0 LIMIT 1");
 		if($groupinfo){
-			$info = json_decode($groupinfo,true);
+			$info = json_decode($groupinfo,true) ?: [];
+			// Omitted types inherit default routing, not unconditional visibility.
+			foreach ($paytype as $id => $_type) {
+				if (!isset($info[$id])) $info[$id] = ['channel'=>-1, 'rate'=>null, 'type'=>'channel'];
+			}
 			foreach($info as $id=>$row){
 				if(!isset($paytype[$id]))continue;
 				if($row['channel']==0){
 					unset($paytype[$id]);
 				}elseif($row['channel']==-1 || $row['channel']==-4 || $row['channel']==-5){
-					$channel=$DB->getRow("SELECT rate,status FROM pre_channel WHERE type='$id' AND status=1 LIMIT 1");
+					$channel=$DB->getRow("SELECT rate,status FROM pre_channel WHERE type='$id' AND status=1 AND daystatus=0 LIMIT 1");
 					if(!$channel){
 						unset($paytype[$id]);
 					}elseif(empty($row['rate'])){
@@ -320,7 +326,7 @@ class Channel {
 						$paytype[$id]['rate']=$row['rate'];
 					}
 				}elseif($row['channel']==-2){
-					$channel=$DB->getRow("SELECT A.id,A.status,rate FROM pre_subchannel B INNER JOIN pre_channel A ON B.channel=A.id WHERE B.uid='$uid' AND A.type='$id' AND A.status=1 AND B.status=1 LIMIT 1");
+					$channel=$DB->getRow("SELECT A.id,A.status,rate FROM pre_subchannel B INNER JOIN pre_channel A ON B.channel=A.id WHERE B.uid='$uid' AND A.type='$id' AND A.status=1 AND B.status=1 AND A.daystatus=0 LIMIT 1");
 					if(!$channel){
 						unset($paytype[$id]);
 					}elseif(empty($row['rate'])){
@@ -329,7 +335,7 @@ class Channel {
 						$paytype[$id]['rate']=$row['rate'];
 					}
 				}elseif($row['channel']==-3){
-					$channel=$DB->getRow("SELECT id,status FROM pre_roll WHERE type='$id' AND status=1 LIMIT 1");
+					$channel=$DB->getRow("SELECT id,status FROM pre_roll WHERE type='$id' AND status=1 AND daystatus=0 LIMIT 1");
 					if(!$channel){
 						unset($paytype[$id]);
 					}else{
@@ -348,10 +354,10 @@ class Channel {
 			}
 		}else{
 			foreach($paytype as $id=>$row){
-				$status=$DB->getColumn("SELECT status FROM pre_channel WHERE type='$id' AND status=1 limit 1");
+				$status=$DB->getColumn("SELECT status FROM pre_channel WHERE type='$id' AND status=1 AND daystatus=0 limit 1");
 				if(!$status || $status==0)unset($paytype[$id]);
 				else{
-					$paytype[$id]['rate']=$DB->getColumn("SELECT rate FROM pre_channel WHERE type='$id' AND status=1 limit 1");
+					$paytype[$id]['rate']=$DB->getColumn("SELECT rate FROM pre_channel WHERE type='$id' AND status=1 AND daystatus=0 limit 1");
 				}
 			}
 		}

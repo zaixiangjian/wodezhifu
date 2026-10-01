@@ -61,6 +61,10 @@ if($firstGetChannel){
 	$getmoney = $order['getmoney'];
 }
 
+// Revalidate current switches before any order/profit write (crypto plugins only).
+$eligibilityOrder = array_merge($order, ['type'=>$submitData['typeid'], 'channel'=>$submitData['channel'], 'subchannel'=>$submitData['subchannel']]);
+if(!\lib\PaymentEligibility::allows($eligibilityOrder, $submitData['plugin'])) sysmsg(\lib\PaymentEligibility::MESSAGE);
+
 // 判断通道单笔支付限额
 if(!empty($submitData['paymin']) && $submitData['paymin']>0 && $order['money']<$submitData['paymin']){
 	sysmsg('<center>当前支付方式单笔最小限额为'.$submitData['paymin'].'元，请选择其他支付方式！</center>', '跳转提示');

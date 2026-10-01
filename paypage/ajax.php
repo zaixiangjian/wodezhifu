@@ -31,7 +31,7 @@ if(!empty($paytype) && isset($_SESSION['paypage_typeid']) && isset($_SESSION['pa
 	}
 }
 
-$userrow = $DB->getRow("SELECT `mode`,`ordername`,`channelinfo`,`money`,`pay_minmoney`,`pay_maxmoney` FROM `pre_user` WHERE `uid`='{$uid}' LIMIT 1");
+$userrow = $DB->getRow("SELECT `gid`,`mode`,`ordername`,`channelinfo`,`money`,`pay_minmoney`,`pay_maxmoney` FROM `pre_user` WHERE `uid`='{$uid}' LIMIT 1");
 
 if($userrow['pay_maxmoney']>0 && $money>$userrow['pay_maxmoney'])showerrorjson('最大支付金额是'.$userrow['pay_maxmoney'].'元');
 if($userrow['pay_minmoney']>0 && $money<$userrow['pay_minmoney'])showerrorjson('最小支付金额是'.$userrow['pay_minmoney'].'元');
@@ -53,6 +53,12 @@ if($conf['pay_iplimit'] > 0 && (empty($conf['pay_iplimit_white']) || strpos($con
 	if($ipcount >= $conf['pay_iplimit']){
 		showerrorjson('你今天已无法再发起支付，请明天再试');
 	}
+}
+
+// Session routing is not authority after an administrator closes a channel.
+if(!empty($paytype) && isset($_SESSION['paypage_typeid'], $_SESSION['paypage_channel'])){
+    $eligibilityOrder = ['uid'=>$uid, 'type'=>intval($_SESSION['paypage_typeid']), 'channel'=>intval($_SESSION['paypage_channel']), 'subchannel'=>intval($_SESSION['paypage_subchannel'] ?? 0)];
+    if(!\lib\PaymentEligibility::allows($eligibilityOrder)) showerrorjson(\lib\PaymentEligibility::MESSAGE);
 }
 
 $trade_no=date("YmdHis").rand(11111,99999);

@@ -82,7 +82,13 @@ class bepusdt_plugin
     private static function createPayment(): array
     {
         global $siteurl, $channel, $order, $conf;
-        foreach ($channel as $value) { if ($value !== null && !is_scalar($value)) return ['type'=>'error','msg'=>'Invalid channel configuration']; }
+        // Loader metadata (notably apptype) may be an array; validate only consumed config.
+        foreach (['appurl', 'appkey'] as $key) {
+            if (!isset($channel[$key]) || !is_scalar($channel[$key])) return ['type'=>'error','msg'=>'Invalid channel configuration'];
+        }
+        foreach (['fiat', 'address', 'timeout', 'rate'] as $key) {
+            if (isset($channel[$key]) && !is_scalar($channel[$key])) return ['type'=>'error','msg'=>'Invalid channel configuration'];
+        }
         if (!is_string($order['realmoney']) && !is_int($order['realmoney'])) return ['type'=>'error','msg'=>'Invalid fiat amount'];
         if (!preg_match('/\A[0-9]+(?:\.[0-9]{1,2})?\z/', (string)$order['realmoney'])) return ['type'=>'error','msg'=>'Invalid fiat amount'];
         // Deployed Go float64 API requires JSON numbers. Bound to non-exponent range
@@ -91,13 +97,13 @@ class bepusdt_plugin
         if ($amount >= 1000000 || !self::moneyMatch($amount, $order['realmoney'])) return ['type'=>'error','msg'=>'Unsupported fiat amount'];
 
         $parameter              = [
-            'fiat'         => trim($channel['fiat']),
-            'address'      => trim($channel['address']),
+            'fiat'         => trim((string)($channel['fiat'] ?? '')),
+            'address'      => trim((string)($channel['address'] ?? '')),
             'trade_type'   => $order['typename'],
             'order_id'     => TRADE_NO,
             'name'         => $order['name'],
-            'timeout'      => intval($channel['timeout']),
-            'rate'         => strval($channel['rate']),
+            'timeout'      => intval($channel['timeout'] ?? 0),
+            'rate'         => strval($channel['rate'] ?? ''),
             'amount'       => (float)$order['realmoney'],
             'notify_url'   => $conf['localurl'] . 'pay/notify/' . TRADE_NO . '/',
             'redirect_url' => $siteurl . 'pay/return/' . TRADE_NO . '/',

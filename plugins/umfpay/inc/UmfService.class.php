@@ -177,7 +177,7 @@ class UmfService
 			throw new Exception('验签失败，平台公钥不正确');
 		}
 		$result = openssl_verify($data, base64_decode($signature), $pubkeyid);
-		return $result;
+		return $result === 1;
 	}
 
 	//平台公钥加密
