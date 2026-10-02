@@ -18,7 +18,7 @@ $cron_key = isset($_GET['key']) && is_string($_GET['key']) ? $_GET['key'] : '';
 if(!hash_equals((string)$conf['cronkey'], $cron_key))exit("监控密钥不正确");
 
 if($_GET['do']=='settle'){
-	\lib\Finance::checked($DB->beginTransaction());
+	\lib\Finance::checked($DB->beginConfigurationTransaction());
     \lib\Finance::checked($DB->exec("INSERT IGNORE INTO pre_config(k,v) VALUES('settle_time','')"));
     \lib\Finance::row("SELECT * FROM pre_config WHERE k='settle_time' FOR UPDATE");
     $settle_time=getSetting('settle_time', true);

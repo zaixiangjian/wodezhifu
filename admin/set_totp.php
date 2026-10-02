@@ -38,7 +38,7 @@ function verify_current_totp($conf, $submitted){
 function save_totp_factor($secret, $enabled){
 	global $DB, $CACHE;
 	try {
-		if($DB->beginTransaction() === false) return false;
+		if($DB->beginConfigurationTransaction() === false) return false;
 		// Store both fields in one statement, not a partially applied two-write flow.
 		if($DB->exec('REPLACE INTO pre_config (k,v) VALUES (:secret_key,:secret),(:open_key,:enabled)', [':secret_key'=>'totp_secret', ':secret'=>$secret, ':open_key'=>'totp_open', ':enabled'=>(string)$enabled]) === false) throw new RuntimeException('write');
 		if($DB->commit() === false) throw new RuntimeException('commit');

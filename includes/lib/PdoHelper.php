@@ -8,6 +8,60 @@ class PdoHelper
 	private $fetchStyle = \PDO::FETCH_ASSOC;
 	private $prefix;
 	private $errorInfo;
+	private $configLockDepth = 0;
+	private $configTransactionLock = false;
+	private $configLockName;
+	private $connectionConfig;
+
+	// Connection-scoped, app/database/prefix-specific; never serialize unrelated cache or funds.
+	public function configLock($timeout = 10){
+		if($this->configLockDepth > 0){ $this->configLockDepth++; return true; }
+		if($this->configLockName === null){
+			$name = $this->getColumn("SELECT CONCAT(DATABASE(), ':', :prefix)", [':prefix'=>$this->prefix]);
+			if(!is_string($name)) throw new \RuntimeException('Configuration lock identity failed');
+			$this->configLockName = 'epay:config:'.hash('sha256', $name);
+			$this->configLockName = substr($this->configLockName, 0, 64);
+		}
+		// Never wait for the advisory mutex after an ambient transaction may have row locks.
+		if($this->db->inTransaction()) $timeout = 0;
+		if((string)$this->getColumn('SELECT GET_LOCK(:name, :timeout)', [':name'=>$this->configLockName, ':timeout'=>$timeout]) !== '1') throw new \RuntimeException('Configuration lock unavailable');
+		$this->configLockDepth = 1;
+		return true;
+	}
+	public function committedConfigRows(){
+		// A separate autocommit connection avoids an ambient REPEATABLE READ snapshot
+		// and never publishes a cache or waits on the writer's InnoDB row locks.
+		$c = $this->connectionConfig;
+		$p = new \PDO("mysql:host={$c['host']};dbname={$c['dbname']};port={$c['port']};charset=utf8mb4", $c['user'], $c['pwd']);
+		$p->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_SILENT);
+		$stmt = $p->query($this->dealPrefix('SELECT k,v FROM pre_config'));
+		if($stmt === false) throw new \RuntimeException('Committed configuration read failed');
+		return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+	}
+	public function beginConfigurationTransaction(){
+		if($this->db->inTransaction()) throw new \LogicException('Ambient configuration transaction');
+		$this->configLock();
+		try {
+			if($this->beginTransaction() !== true) throw new \RuntimeException('Configuration transaction failed');
+			$this->configEnlist();
+			return true;
+		} finally { $this->configUnlock(); }
+	}
+	public function configUnlock(){
+		if($this->configLockDepth <= 0) throw new \LogicException('Configuration lock not owned');
+		if(--$this->configLockDepth === 0){
+			if((string)$this->getColumn('SELECT RELEASE_LOCK(:name)', [':name'=>$this->configLockName]) !== '1') throw new \RuntimeException('Configuration lock release failed');
+		}
+	}
+	public function configEnlist(){
+		if($this->db->inTransaction() && !$this->configTransactionLock){
+			$this->configLock();
+			$this->configTransactionLock = true;
+		}
+	}
+	private function releaseConfigTransactionLock(){
+		if($this->configTransactionLock){ $this->configTransactionLock = false; $this->configUnlock(); }
+	}
 
 	/**
 	 * PdoHelper constructor.
@@ -16,6 +70,7 @@ class PdoHelper
 	 */
 	function __construct($dbconfig)
 	{
+		$this->connectionConfig = $dbconfig;
 		$this->prefix = $dbconfig['dbqz'].'_';
 		try {
 			$this->db = new \PDO("mysql:host={$dbconfig['host']};dbname={$dbconfig['dbname']};port={$dbconfig['port']};charset=utf8mb4",$dbconfig['user'],$dbconfig['pwd']);
@@ -230,6 +285,31 @@ class PdoHelper
 	 */
 	public function exec($_sql, $_array = null)
 	{
+		// All wrapper config writers (exec/update/insert/delete), including legacy loops,
+		// invalidate in the same transaction and hold the builder lock until commit.
+		if(preg_match('/^\s*(?:REPLACE\s+INTO|INSERT(?:\s+IGNORE)?\s+INTO|UPDATE|DELETE\s+FROM)\s+`?pre_config`?\b/i', $_sql)){
+			$this->configLock();
+			$owned = false;
+			try {
+				if(!$this->db->inTransaction()){
+					if($this->beginTransaction() !== true) throw new \RuntimeException('Configuration transaction failed');
+					$owned = true;
+				}
+				$this->configEnlist();
+				$result = $this->execRaw($_sql, $_array);
+				if($result === false || $this->execRaw("UPDATE pre_cache SET v='' WHERE k='config'") === false) throw new \RuntimeException('Configuration write failed');
+				if($owned && $this->commit() !== true) throw new \RuntimeException('Configuration commit failed');
+				return $result;
+			} catch(\Throwable $e){
+				if($owned && $this->db->inTransaction()) $this->rollBack();
+				if($owned) return false;
+				throw $e;
+			} finally { $this->configUnlock(); }
+		}
+		return $this->execRaw($_sql, $_array);
+	}
+	private function execRaw($_sql, $_array = null)
+	{
 		$_sql = $this->dealPrefix($_sql);
 		if (is_array($_array)) {
 			$stmt = $this->db->prepare($_sql);
@@ -265,6 +345,11 @@ class PdoHelper
 	 */
 	public function query($_sql, $_array = null)
 	{
+		if(preg_match('/\bpre_config\b/i', $_sql) && preg_match('/\bFOR\s+UPDATE\b/i', $_sql)){
+			$this->configLock();
+			try { $this->configEnlist(); }
+			finally { $this->configUnlock(); }
+		}
 		$_sql = $this->dealPrefix($_sql);
 		if (is_array($_array)) {
 			$stmt = $this->db->prepare($_sql);
@@ -393,42 +478,31 @@ class PdoHelper
 	//提交事务
 	public function commit()
 	{
-		return $this->db->commit();
+		try { return $this->db->commit(); }
+		finally { if(!$this->db->inTransaction()) $this->releaseConfigTransactionLock(); }
 	}
 
 	//回滚事务
 	public function rollBack()
 	{
-		return $this->db->rollBack();
+		try { return $this->db->rollBack(); }
+		finally { if(!$this->db->inTransaction()) $this->releaseConfigTransactionLock(); }
 	}
 
 	//事务
 	public function transaction($action){
-		if (is_callable($action))
-		{
-			$this->db->beginTransaction();
-
-			try {
-				$result = $action($this);
-
-				if ($result === false)
-				{
-					$this->db->rollBack();
-				}
-				else
-				{
-					$this->db->commit();
-				}
-			}
-			catch (\Exception $e) {
-				$this->db->rollBack();
-				throw $e;
-			}
-
+		if(!is_callable($action)) return false;
+		if($this->db->inTransaction()) throw new \LogicException('Nested wrapper transaction');
+		if($this->beginTransaction() !== true) throw new \RuntimeException('Transaction start failed');
+		try {
+			$result = $action($this);
+			if($result === false){ $this->rollBack(); return false; }
+			if($this->commit() !== true) throw new \RuntimeException('Transaction commit failed');
 			return $result;
+		} catch(\Throwable $e){
+			if($this->db->inTransaction()) $this->rollBack();
+			throw $e;
 		}
-
-		return false;
 	}
 
 	function __get($name)

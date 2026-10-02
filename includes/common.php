@@ -68,7 +68,8 @@ exit();
 
 
 $CACHE=new \lib\Cache();
-$conf=$CACHE->pre_fetch();
+try { $conf=$CACHE->pre_fetch(); }
+catch(Throwable $e){ http_response_code(503); header('Retry-After: 2'); exit('Configuration temporarily unavailable'); }
 define('SYS_KEY', $conf['syskey']);
 if(!$conf['localurl'])$conf['localurl'] = $siteurl;
 $password_hash='!@#%!s!0';
@@ -90,6 +91,9 @@ if (!file_exists(ROOT.'install/install.lock') && file_exists(ROOT.'install/index
 	sysmsg('<h2>检测到无 install.lock 文件</h2><ul><li><font size="4">如果您尚未安装本程序，请<a href="/install/">前往安装</a></font></li><li><font size="4">如果您已经安装本程序，请手动放置一个空的 install.lock 文件到 /install 文件夹下，<b>为了您站点安全，在您完成它之前我们不会工作。</b></font></li></ul><br/><h4>为什么必须建立 install.lock 文件？</h4>它是安装保护文件，如果检测不到它，就会认为站点还没安装，此时任何人都可以安装/重装你的网站。<br/><br/>');exit;
 }
 
+require_once SYSTEM_ROOT.'site_redirect.php';
+epay_site_redirect_apply($conf);
+
 if($conf['cdnpublic']==1){
 	$cdnpublic = '//lib.baomitu.com/';
 }elseif($conf['cdnpublic']==2){
@@ -105,9 +109,18 @@ if(empty($conf['public_key'])){
 	if($key_pair){
 		$conf['public_key'] = $key_pair['public_key'];
 		$conf['private_key'] = $key_pair['private_key'];
-		saveSetting('public_key', $conf['public_key']);
-		saveSetting('private_key', $conf['private_key']);
-		$CACHE->clear();
+		$DB->beginConfigurationTransaction();
+		try {
+			$current = $DB->getColumn("SELECT v FROM pre_config WHERE k='public_key' FOR UPDATE");
+			if(empty($current)){
+				if(saveSetting('public_key', $conf['public_key']) === false || saveSetting('private_key', $conf['private_key']) === false) throw new RuntimeException('Key configuration write failed');
+			}
+			if($DB->commit() !== true) throw new RuntimeException('Key configuration commit failed');
+			$conf = array_replace($conf, $CACHE->update());
+		} catch(Throwable $e){
+			if($DB->db->inTransaction()) $DB->rollBack();
+			throw $e;
+		}
 		unset($key_pair);
 	}
 }

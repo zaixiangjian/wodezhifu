@@ -20,6 +20,9 @@ $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
 $db->exec("set sql_mode = ''");
 $db->exec("set names utf8");
 
+require_once __DIR__.'/config_lock.php';
+epay_maintenance_config_lock($db, $dbconfig['dbqz']);
+
 $version = 0;
 if($rs = $db->query("SELECT v FROM pay_config WHERE k='version'")){
 	$version = $rs->fetchColumn();

@@ -2,6 +2,8 @@
 include("../includes/common.php");
 
 if($islogin2==1){}else exit("<script language='javascript'>window.location.href='./login.php';</script>");
+// Only the explicitly disabled status is blocked; pending/unknown retain legacy policy.
+if(isset($userrow['status']) && (string)$userrow['status'] === '0'){ http_response_code(403); exit('Forbidden'); }
 if(!checkRefererHost()) exit('Forbidden');
 csrf_check_page('user');
 

@@ -109,6 +109,8 @@ if($step==3){
             $DB->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
             $DB->exec("set sql_mode = ''");
             $DB->exec("set names utf8");
+            require_once __DIR__.'/config_lock.php';
+            epay_maintenance_config_lock($DB, $dbqz);
             $sqls=file_get_contents('install.sql');
             $sqls=explode(';', $sqls);
             $sqls[]="INSERT INTO `".$dbqz."_config` VALUES ('syskey', '".random(32)."')";

@@ -186,6 +186,27 @@ if($mod=='site'){
 	  <div class="col-sm-10"><input type="text" name="homepage_301_url" value="<?php echo setting_html($conf['homepage_301_url'])?>" class="form-control" placeholder="谨慎使用，永久跳转到指定网址"/><font color="red">谨慎：301 可能被浏览器和搜索引擎长期缓存，除非确定永久跳转，否则建议用 302。</font></div>
 	</div><br/>
 	<div class="form-group">
+      <label class="col-sm-2 control-label">全站跳转模式</label>
+      <div class="col-sm-10"><select class="form-control" name="site_redirect_mode" default="<?php echo setting_html($conf['site_redirect_mode'] ?? '0')?>"><option value="0">关闭（默认）</option><option value="302">302临时跳转（推荐）</option><option value="301">301永久跳转（谨慎）</option><option value="302_follow">302跟随路径</option><option value="301_follow">301跟随路径</option></select><span class="help-block">普通访客页面跳转；支付流程与管理员后台保留。普通非支付 POST/AJAX 请求拒绝。固定模式不附加访客路径或参数；跟随模式保留原路径，访客查询参数由下方策略控制，支付及后台精确例外仍优先。此功能不是访问认证。</span></div>
+    </div><br/>
+    <div class="form-group" id="site_redirect_query_div" style="<?php echo !in_array($conf['site_redirect_mode'] ?? '0', ['302_follow','301_follow'], true)?'display:none;':''; ?>">
+      <label class="col-sm-2 control-label">跟随查询参数策略</label>
+      <div class="col-sm-10"><select class="form-control" name="site_redirect_query_policy" default="<?php echo setting_html($conf['site_redirect_query_policy'] ?? 'all')?>"><option value="allowlist">白名单（推荐）</option><option value="all">全部携带（谨慎）</option></select><span class="help-block">仅对302/301跟随路径模式有效；未设置时保持全部携带。管理员目标URL自带参数不受过滤。</span></div>
+    </div><br/>
+    <div class="form-group" id="site_redirect_query_allowlist_div" style="<?php echo !in_array($conf['site_redirect_mode'] ?? '0', ['302_follow','301_follow'], true) || ($conf['site_redirect_query_policy'] ?? 'all') !== 'allowlist'?'display:none;':''; ?>">
+      <label class="col-sm-2 control-label">允许携带的参数名</label>
+      <div class="col-sm-10"><textarea name="site_redirect_query_allowlist" class="form-control" maxlength="4096" rows="3"><?php echo setting_html($conf['site_redirect_query_allowlist'] ?? 's')?></textarea><span class="help-block">逗号、换行或空白分隔，例如 s,page。大小写精确匹配；仅允许ASCII字母、数字、_、点、横线；不接受数组键。每项最多64字符、最多64项、总计4KB。空白名单表示不携带任何访客查询参数。重复参数及原编码按顺序保留。目标自带参数与访客参数同名时仍原样追加，目标站如何解释重复值由目标决定。</span></div>
+    </div><br/>
+    <div class="form-group" id="site_redirect_302_div" style="<?php echo !in_array($conf['site_redirect_mode'] ?? '0', ['302','302_follow'], true)?'display:none;':''; ?>">
+      <label class="col-sm-2 control-label">全站302跳转URL</label>
+      <div class="col-sm-10"><input type="url" name="site_redirect_302_url" value="<?php echo setting_html($conf['site_redirect_302_url'] ?? '')?>" class="form-control" placeholder="https://example.com/"/><span class="help-block">固定模式不附加路径或参数；跟随模式将目标路径作为前缀，例如 https://target.test/base/ + /153 → /base/153。目标已有查询参数时，经策略选择的访客参数按原样追加（&amp;），保留重复项及编码；目标片段最后保留。</span></div>
+    </div><br/>
+    <div class="form-group" id="site_redirect_301_div" style="<?php echo !in_array($conf['site_redirect_mode'] ?? '0', ['301','301_follow'], true)?'display:none;':''; ?>">
+      <label class="col-sm-2 control-label">全站301跳转URL</label>
+      <div class="col-sm-10"><input type="url" name="site_redirect_301_url" value="<?php echo setting_html($conf['site_redirect_301_url'] ?? '')?>" class="form-control" placeholder="https://example.com/"/><span class="help-block text-danger">301可能被浏览器和搜索引擎长期缓存，关闭后仍可能无法立即恢复，建议使用302。跟随规则与302相同。</span></div>
+    </div><br/>
+    <div class="alert alert-warning">选择“全部携带”会把普通访客URL的全部查询参数发送给目标站；推荐选择白名单并只填写需要的参数名（例如 s）。查询参数将发送给目标站（包括可能存在的 token、sign、key 等敏感值），仅应配置可信目标。no-referrer不能隐藏Location中的查询参数。例：/153、/2026/08/23、/?s=12312 均保留；浏览器片段不会随HTTP请求传入。含控制字符、异常编码或点路径的请求会被拒绝。</div>
+	<div class="form-group">
 	  <div class="col-sm-offset-2 col-sm-10"><input type="submit" name="submit" value="修改" class="btn btn-primary form-control"/><br/>
 	 </div>
 	</div>
@@ -213,6 +234,16 @@ $("select[name='test_open']").change(function(){
 	}else{
 		$("#setform3").hide();
 	}
+});
+$("select[name='site_redirect_mode']").change(function(){
+    $("#site_redirect_302_div").toggle(['302','302_follow'].indexOf($(this).val()) !== -1);
+    $("#site_redirect_301_div").toggle(['301','301_follow'].indexOf($(this).val()) !== -1);
+    var follow = ['302_follow','301_follow'].indexOf($(this).val()) !== -1;
+    $('#site_redirect_query_div').toggle(follow);
+    $('#site_redirect_query_allowlist_div').toggle(follow && $('select[name=site_redirect_query_policy]').val() === 'allowlist');
+});
+$("select[name='site_redirect_query_policy']").change(function(){
+    $("select[name='site_redirect_mode']").trigger('change');
 });
 $("select[name='homepage']").change(function(){
 	if($(this).val() == 2){
@@ -274,7 +305,7 @@ $("select[name='homepage']").change(function(){
 		catch(Exception $e){ showmsg('当前动态口令验证失败',3); }
 	}
 	try {
-		if($DB->beginTransaction()===false)throw new RuntimeException('begin');
+		if($DB->beginConfigurationTransaction()===false)throw new RuntimeException('begin');
 		$sql='REPLACE INTO pre_config (k,v) VALUES (:userkey,:user)';
 		$params=[':userkey'=>'admin_user',':user'=>$user];
 		if($newpwd!==''){ $sql.=',(:pwdkey,:pwd)'; $params[':pwdkey']='admin_pwd'; $params[':pwd']=$newpwd; }
