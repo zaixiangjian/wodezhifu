@@ -575,6 +575,7 @@ class Pay
 
         $pid=intval($queryArr['pid']);
         if(!$conf['user_refund']) throw new Exception('管理员未开启商户后台自助退款');
+        if(empty($userrow['refund'])) throw new Exception('商户未开启订单退款API接口', -2);
 
         $money = !empty($queryArr['money']) ? self::safeMoney($queryArr['money']) : '';
         

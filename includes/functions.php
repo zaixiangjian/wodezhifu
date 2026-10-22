@@ -1660,13 +1660,32 @@ function epay_business_once($key, $payload, $uids, $callback){
     });
 }
 
+function epay_certification_state($uid, $token){
+    global $conf;
+    if((int)$uid <= 0 || !is_string($token) || $token === '' || strlen($token)>256) throw new \RuntimeException('认证任务不存在，请重新申请');
+    $payload = json_encode(['purpose'=>'alipay-certdoc-v1','uid'=>(int)$uid,'token'=>$token,'channel'=>(int)$conf['cert_channel']], JSON_THROW_ON_ERROR);
+    return authcode($payload, 'ENCODE', SYS_KEY, 900);
+}
+function epay_certification_request($state, $token){
+    global $DB, $conf;
+    if(!is_string($state) || $state === '' || strlen($state)>4096 || !is_string($token) || $token === '' || strlen($token)>256) throw new \RuntimeException('认证请求已失效，请重新申请');
+    $plain = authcode(str_replace(' ', '+', $state), 'DECODE', SYS_KEY);
+    $data = json_decode($plain, true);
+    if(!is_array($data) || ($data['purpose'] ?? '') !== 'alipay-certdoc-v1'
+        || !is_int($data['uid'] ?? null) || $data['uid']<=0
+        || ($data['channel'] ?? null) !== (int)$conf['cert_channel']
+        || !is_string($data['token'] ?? null) || !hash_equals($data['token'], $token)) throw new \RuntimeException('认证请求已失效，请重新申请');
+    $user = $DB->getRow('SELECT cert,certtoken FROM pre_user WHERE uid=:uid LIMIT 1', [':uid'=>$data['uid']]);
+    if(!$user || (int)$user['cert']===1 || !is_string($user['certtoken']) || $user['certtoken']==='' || !hash_equals($user['certtoken'], $token)) throw new \RuntimeException('认证请求已失效，请重新申请');
+    return $data['uid'];
+}
 function epay_complete_certification($uid,$token,$fee,$extra=[]){
     global $DB;
     return \lib\Finance::transaction(function() use($DB,$uid,$token,$fee,$extra){
         $user=\lib\Finance::row('SELECT cert,certtoken FROM pre_user WHERE uid=:uid FOR UPDATE',[':uid'=>$uid]);
         if(!$user) throw new \RuntimeException('认证账户不存在');
         if((int)$user['cert']===1) return false;
-        if($token!==null && (!is_scalar($token) || (string)$token==='' || !hash_equals((string)$user['certtoken'],(string)$token))) throw new \RuntimeException('认证请求已失效');
+        if(!is_string($token) || $token==='' || strlen($token)>256 || !is_string($user['certtoken']) || $user['certtoken']==='' || !hash_equals($user['certtoken'],$token)) throw new \RuntimeException('认证请求已失效');
         if(\lib\Finance::cents($fee)>0) \lib\Finance::change($uid,$fee,false,'实名认证','cert:'.$uid,true);
         $data=['cert'=>1,'certtime'=>'NOW()'];
         if(isset($extra['alipay_uid']))$data['alipay_uid']=$extra['alipay_uid'];

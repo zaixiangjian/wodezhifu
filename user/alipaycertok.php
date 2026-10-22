@@ -26,9 +26,12 @@ if($conf['cert_open'] == 1){ //支付宝身份验证
 	}
 
 }elseif($conf['cert_open'] == 3){ //支付宝实名信息验证
-	$uid = authcode(str_replace(' ', '+', $_GET['state']), 'DECODE', SYS_KEY);
-	if(!$uid || $uid<=0)sysmsg('state校验失败');
-	$uid = intval($uid);
+	try{
+        $verifyId = $_GET['cert_verify_id'] ?? null;
+        $uid = epay_certification_request($_GET['state'] ?? null, $verifyId);
+        $authCode = $_GET['auth_code'] ?? null;
+        if(!is_string($authCode) || $authCode === '' || strlen($authCode)>2048) throw new RuntimeException('授权码不合法');
+    }catch(Exception $e){ sysmsg('认证请求已失效，请重新申请'); }
 
 	$channel = \lib\Channel::get($conf['cert_channel']);
 	if(!$channel)sysmsg('当前支付通道信息不存在');
@@ -36,8 +39,8 @@ if($conf['cert_open'] == 1){ //支付宝身份验证
 
 	$certdoc = new \Alipay\AlipayCertdocService($alipay_config);
 	try{
-		$tokenArr = $certdoc->getToken($_GET['auth_code']);
-		$result = $certdoc->consult($_GET['cert_verify_id'], $tokenArr['access_token']);
+		$tokenArr = $certdoc->getToken($authCode);
+		$result = $certdoc->consult($verifyId, $tokenArr['access_token']);
 	}catch(Exception $e){
 		sysmsg('实名证件信息比对验证失败！'.$e->getMessage());
 	}
@@ -48,7 +51,10 @@ if($conf['cert_open'] == 1){ //支付宝身份验证
 		}else{
 			$openid = $tokenArr['open_id'];
 		}
-        epay_complete_certification($uid,null,$conf['cert_money'],['alipay_uid'=>$openid]);
+        if(!is_string($openid) || $openid === '' || strlen($openid)>256) sysmsg('认证身份不合法');
+        try{
+            epay_complete_certification($uid,$verifyId,$conf['cert_money'],['alipay_uid'=>$openid]);
+        }catch(Exception $e){ sysmsg('认证请求已失效，请重新申请'); }
 		@header('Content-Type: text/html; charset=UTF-8');
 		if($islogin2==1){
 			exit("<script language='javascript'>alert('实名认证成功！');window.location.href='./certificate.php';</script>");

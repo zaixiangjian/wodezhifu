@@ -823,7 +823,7 @@ case 'cert_geturl':
 			$alipay_config = require(PLUGIN_ROOT.$channel['plugin'].'/inc/config.php');
 			$certdoc = new \Alipay\AlipayCertdocService($alipay_config);
 			$redirect_uri = $siteurl.'user/alipaycertok.php';
-			$state = authcode($uid, 'ENCODE', SYS_KEY);
+			$state = epay_certification_state($uid, $userrow['certtoken']);
 			$url = $certdoc->oauth($redirect_uri, $userrow['certtoken'], $state, true);
 			exit(json_encode(['code'=>1, 'msg'=>'ok', 'url'=>$url]));
 		}else{
@@ -1333,11 +1333,13 @@ case 'transfer_proof':
 break;
 
 case 'refund_query': //退款查询
+	if(($conf['user_refund'] ?? null) != 1) exit('{"code":-1,"msg":"管理员未开启商户后台自助退款"}');
 	$trade_no=user_safe_token($_POST['trade_no'], '订单号');
 	$result = \lib\Order::refund_info($trade_no, 1, $uid);
 	exit(json_encode($result));
 break;
 case 'refund_submit': //确认退款
+	if(($conf['user_refund'] ?? null) != 1) exit('{"code":-1,"msg":"管理员未开启商户后台自助退款"}');
 	if(!is_string($_POST['pwd'] ?? null)) exit('{"code":-1,"msg":"密码参数不合法"}');
 	$trade_no=user_safe_token($_POST['trade_no'], '订单号');
 	$pwd=trim($_POST['pwd']);
