@@ -17,7 +17,7 @@ if(!defined('IN_CRONLITE'))exit();
 		<link rel="stylesheet" type="text/css" href="<?php echo STATIC_ROOT?>css/index_main.css"/>
 		<link rel="stylesheet" type="text/css" href="<?php echo STATIC_ROOT?>css/common_contact.css"/>
 		<link rel="stylesheet" type="text/css" href="<?php echo STATIC_ROOT?>css/media.css" />
-		<script src="<?php echo $cdnpublic?>jquery/1.12.4/jquery.min.js"></script>
+		<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
 		<script src="<?php echo STATIC_ROOT?>js/aos.js"></script>
 		<script src="<?php echo STATIC_ROOT?>js/xs.js"></script>
 		<script src="<?php echo STATIC_ROOT?>js/common_js.js"></script>

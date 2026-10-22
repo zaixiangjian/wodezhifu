@@ -45,7 +45,7 @@ if (!defined('IN_PLUGIN'))
                 </div>
             </div>
         </div>
-        <script src="<?php echo $cdnpublic ?>jquery/1.12.4/jquery.min.js"></script>
+        <script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
         <script src="<?php echo $cdnpublic ?>layer/3.1.1/layer.js"></script>
         <script>
             var code_url = '<?php echo $code_url ?>';

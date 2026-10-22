@@ -29,7 +29,7 @@ if(!defined('IN_PLUGIN'))exit();
 			</div>
 		</div>
 	</div>
-<script src="<?php echo $cdnpublic?>jquery/1.12.4/jquery.min.js"></script>
+<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
 <script type="text/javascript">
 	document.body.addEventListener('touchmove', function (event) {
 		event.preventDefault();

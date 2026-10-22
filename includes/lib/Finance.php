@@ -71,6 +71,23 @@ class Finance
         });
     }
 
+    /** Mutate available deposit, never spendable money; callers own business idempotency. */
+    public static function changeDeposit($uid, $money, $add, $type, $reference){
+        global $DB;
+        $cents = self::cents($money);
+        if ($cents === 0) return true;
+        return self::transaction(function() use ($DB, $uid, $cents, $add, $type, $reference){
+            $user = self::row('SELECT deposit FROM pre_user WHERE uid=:uid FOR UPDATE', [':uid'=>$uid]);
+            if (!$user) throw new \RuntimeException('保证金账户不存在');
+            $old = self::cents($user['deposit'] ?? '0', true);
+            $new = $add ? $old + $cents : $old - $cents;
+            if ($new < 0) throw new \RuntimeException('可用保证金不足，需核对已提取或冻结资金');
+            if (self::checked($DB->update('user', ['deposit'=>self::amount($new)], ['uid'=>$uid])) !== 1) throw new \RuntimeException('保证金账户更新失败');
+            self::checked($DB->insert('record', ['uid'=>$uid, 'action'=>$add ? 1 : 2, 'money'=>self::amount($cents), 'oldmoney'=>self::amount($old), 'newmoney'=>self::amount($new), 'type'=>$type, 'trade_no'=>$reference, 'date'=>'NOW()']));
+            return true;
+        });
+    }
+
     public static function change($uid, $money, $add = true, $type = null, $orderid = null, $requireFunds = false){
         global $DB;
         $cents = self::cents($money);

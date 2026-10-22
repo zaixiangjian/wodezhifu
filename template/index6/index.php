@@ -267,8 +267,8 @@ if(!defined('IN_CRONLITE'))exit();
     <!-- end #page-container -->
 	
 	<!-- ================== BEGIN BASE JS ================== -->
-	<script src="<?php echo $cdnpublic?>jquery/1.12.4/jquery.min.js"></script>
-	<script src="<?php echo $cdnpublic?>twitter-bootstrap/3.4.1/js/bootstrap.min.js"></script>
+	<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
+	<script src="/assets/vendor/twitter-bootstrap/3.4.1-epay.1/js/bootstrap.js"></script>
 	<!--[if lt IE 9]>
 		<script src="<?php echo $cdnpublic?>html5shiv/3.7.3/html5shiv.min.js"></script>
 		<script src="<?php echo $cdnpublic?>respond.js/1.4.2/respond.min.js"></script>

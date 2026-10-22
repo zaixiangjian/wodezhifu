@@ -461,7 +461,7 @@ if(!defined('IN_CRONLITE'))exit();
     <a class="back-top" href="javascript:void(0);"><i class="back-top-icon"></i></a>
 </footer>
 
-  <script src="<?php echo $cdnpublic?>jquery/3.4.1/jquery.min.js"></script>
+  <script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
   <script src="<?php echo $cdnpublic?>jquery.lazyload/1.9.1/jquery.lazyload.min.js"></script>
   <script src="<?php echo STATIC_ROOT?>js/my_js_1107.js"></script>
 

@@ -231,7 +231,7 @@
         </form>
     </div>
 
-    <script src="<?php echo $cdnpublic ?>jquery/3.4.1/jquery.min.js"></script>
+    <script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
     <script src="<?php echo $cdnpublic ?>twitter-bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo $cdnpublic ?>bootstrap-datepicker/1.10.0/js/bootstrap-datepicker.min.js"></script>
     <script src="<?php echo $cdnpublic ?>bootstrap-datepicker/1.10.0/locales/bootstrap-datepicker.zh-CN.min.js"></script>

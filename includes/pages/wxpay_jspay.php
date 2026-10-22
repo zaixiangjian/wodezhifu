@@ -40,7 +40,7 @@ if(!defined('IN_PLUGIN'))exit();
 <div style="position: fixed;width: 100%;text-align: center;color: #a1a1a1;bottom: 17px;font-size: 12px;">
     支付安全由中国人民财产保险股份有限公司承保
 </div>
-<script src="<?php echo $cdnpublic?>jquery/1.12.4/jquery.min.js"></script>
+<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
 <script src="<?php echo $cdnpublic?>layer/3.1.1/layer.js"></script>
 <script>
 	document.body.addEventListener('touchmove', function (event) {

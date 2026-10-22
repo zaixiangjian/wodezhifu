@@ -21,7 +21,7 @@ body{margin:0;padding:0}
 <body>
 <p id="waiting">正在进行支付安全验证，请稍候...</p>
 <?php echo $html?>
-<script src="<?php echo $cdnpublic?>jquery/1.12.4/jquery.min.js"></script>
+<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
 <script src="https://static.geetest.com/v4/gt4.js"></script>
 <script>
 window.appendChildOrg = Element.prototype.appendChild;

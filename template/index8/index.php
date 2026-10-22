@@ -136,7 +136,7 @@ if(!defined('IN_CRONLITE'))exit();
         </div>
     </footer>
 </div>
-<script type="text/javascript" src="<?php echo $cdnpublic?>jquery/1.12.4/jquery.min.js"></script>
+<script type="text/javascript" src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
 <script src="<?php echo $cdnpublic?>OwlCarousel2/2.3.4/owl.carousel.min.js"></script>
 <script src="<?php echo STATIC_ROOT?>js/main.js"></script>
 <script type="text/javascript">

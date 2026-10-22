@@ -9,10 +9,10 @@ $paytype = $DB->getAll("SELECT * FROM pre_type WHERE status=1 ORDER BY id ASC");
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
         <title>开发文档 - <?php echo $conf['sitename']?></title>
     <!-- jQuery-->
-    <script src="<?php echo $cdnpublic?>jquery/1.12.4/jquery.min.js"></script>
+    <script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
     <!-- layui -->
-    <link rel="stylesheet" href="<?php echo $cdnpublic?>layui/2.6.13/css/layui.css" />
-    <script src="<?php echo $cdnpublic?>layui/2.6.13/layui.js"></script>
+    <link rel="stylesheet" href="/assets/vendor/layui/2.13.9/css/layui.css" />
+    <script src="/assets/vendor/layui/2.13.9/layui.js"></script>
     <!-- zTree -->
     <link rel="stylesheet" href="<?php echo $cdnpublic?>zTree.v3/3.5.42/css/zTreeStyle/zTreeStyle.min.css" />
     <script src="<?php echo $cdnpublic?>zTree.v3/3.5.42/js/jquery.ztree.core.min.js"></script>

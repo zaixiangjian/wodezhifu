@@ -42,7 +42,7 @@ body{background:#F4F4F8}
     </div>
 </div>
 <div class="J-weixin-tip-img weixin-tip-img"></div>
-<script src="<?php echo $cdnpublic?>jquery/1.12.4/jquery.min.js"></script>
+<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
 <script src="<?php echo $cdnpublic?>layer/3.1.1/layer.js"></script>
 <script>
     function loadmsg() {

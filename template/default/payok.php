@@ -34,7 +34,7 @@ if(!defined('IN_CRONLITE'))exit();
 			</div>
 		</div>
 		<script src="https://res.wx.qq.com/open/libs/zepto/1.1.6/zepto.js"></script>
-		<script src="<?php echo $cdnpublic?>jquery/1.12.4/jquery.min.js"></script>
+		<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
 		<script type="text/javascript">
 document.body.addEventListener('touchmove', function (event) {
 	event.preventDefault();

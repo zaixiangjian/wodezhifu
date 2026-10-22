@@ -122,8 +122,8 @@ $_SESSION['csrf_token'] = $csrf_token;
 </div>
 </div>
 </div>
-<script src="<?php echo $cdnpublic?>jquery/3.4.1/jquery.min.js"></script>
-<script src="<?php echo $cdnpublic?>twitter-bootstrap/3.4.1/js/bootstrap.min.js"></script>
+<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
+<script src="/assets/vendor/twitter-bootstrap/3.4.1-epay.1/js/bootstrap.js"></script>
 <script src="<?php echo $cdnpublic?>layer/3.1.1/layer.js"></script>
 <script src="<?php echo $cdnpublic?>jsencrypt/3.5.4/jsencrypt.min.js"></script>
 <script src="//static.geetest.com/static/tools/gt.js"></script>

@@ -273,7 +273,9 @@ case 'refund': //退款操作
 	$refund_no = date("YmdHis").rand(11111,99999);
 	$result = \lib\Order::refund($refund_no, $trade_no, $money);
 	if($result['code'] == 0){
-		$result['msg'] = '已成功从UID:'.$result['uid'].'扣除'.$result['reducemoney'].'元余额';
+		$account_uid = $result['account_uid'] ?? $result['uid'];
+		$account_label = ($result['account_type'] ?? 'money') === 'deposit' ? '保证金' : '余额';
+		$result['msg'] = '已成功从UID:'.$account_uid.'扣除'.$result['reducemoney'].'元'.$account_label;
 	}
 	exit(json_encode($result));
 break;
@@ -291,7 +293,9 @@ case 'apirefund': //API退款操作
 	if($result['code'] == 0){
 		$result['msg'] = '退款成功！退款金额¥'.$result['money'];
 		if($result['reducemoney']>0){
-			$result['msg'] .= '，并成功从UID:'.$result['uid'].'扣除'.$result['reducemoney'].'元余额';
+			$account_uid = $result['account_uid'] ?? $result['uid'];
+			$account_label = ($result['account_type'] ?? 'money') === 'deposit' ? '保证金' : '余额';
+			$result['msg'] .= '，并成功从UID:'.$account_uid.'扣除'.$result['reducemoney'].'元'.$account_label;
 		}
 	}
 	exit(json_encode($result));

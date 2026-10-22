@@ -47,25 +47,18 @@ class Alipay implements IProfitSharing
         );
         try{
             $result = $this->service->aopExecute('alipay.trade.order.settle', $bizContent);
-            $status = $bizContent['royalty_mode'] == 'sync' ? 1 : 0;
-            return ['code'=>$status, 'msg'=>'分账成功', 'settle_no'=>$result['settle_no'], 'money'=>round($allmoney, 2), 'rdata'=>$rdata];
+            $status = 0; // Acceptance is not proof that every receiver succeeded; query exact results.
+            return ['code'=>$status, 'msg'=>'分账已受理，待查询全部接收方结果', 'settle_no'=>$result['settle_no'], 'money'=>round($allmoney, 2), 'rdata'=>$rdata];
         } catch (Exception $e) {
             return ['code'=>-1, 'msg'=>$e->getMessage()];
         }
     }
 
     //查询分账结果
-    public function query($trade_no, $api_trade_no, $settle_no){
+    public function query($trade_no, $api_trade_no, $settle_no, $expected = []){
         try{
             $result = $this->service->order_settle_query($settle_no);
-            $receiver = $result['royalty_detail_list'][0];
-            if($receiver['state'] == 'SUCCESS'){
-                return ['code'=>0, 'status'=>1];
-            }elseif($receiver['state'] == 'FAIL'){
-                return ['code'=>0, 'status'=>2, 'reason'=>'['.$receiver['error_code'].']'.$receiver['error_desc']];
-            }else{
-                return ['code'=>0, 'status'=>0];
-            }
+            return ReceiverState::aggregate($expected,$result['royalty_detail_list']??null,'trans_in',false,'SUCCESS','FAIL','state') + ['receivers'=>$result['royalty_detail_list']??null];
         } catch (Exception $e) {
             return ['code'=>-1, 'msg'=>$e->getMessage()];
         }

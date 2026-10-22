@@ -51,10 +51,10 @@ class CommUtil
     //订单分账定时任务
     public static function task(){
         global $DB, $conf;
-        $limit = 10; //每次查询分账的订单数量
-        $list = $DB->getAll("SELECT A.*,B.channel,B.account,B.name,B.rate,B.info,B.uid psuid,C.uid,C.subchannel,C.realmoney ordermoney FROM pre_psorder A INNER JOIN pre_psreceiver B ON B.id=A.rid LEFT JOIN pre_order C ON C.trade_no=A.trade_no WHERE A.status IN (1,5) ORDER BY A.id ASC LIMIT {$limit}");
-        foreach($list as $srow){
-            self::process_item($srow);
+        // Persist selection before provider I/O. Unresolved old intents must not starve later queries.
+        foreach(self::queryBatch() as $id){
+            $srow=self::loadItem($id);
+            if($srow && in_array((int)$srow['status'],[1,5,6],true))self::process_item($srow);
         }
     
         $limit = 10; //每次提交分账的订单数量
@@ -70,6 +70,39 @@ class CommUtil
                 self::process_item($srow);
             }
         }
+    }
+
+    /** Reserve at most 10 query intents while inspecting at most 100 primary-key rows.
+     * The cycle ceiling prevents a stream of new orders delaying wraparound forever.
+     * Only scheduler metadata is mutable; never hold its lock over provider I/O.
+     */
+    public static function queryBatch(){
+        global $DB;
+        if($DB->db->inTransaction())throw new \RuntimeException('分账调度必须独立提交游标');
+        return \lib\Finance::transaction(function() use($DB){
+            $key='cron:profit-query:v1';
+            \lib\Finance::checked($DB->query("INSERT INTO pre_funds_snapshot (event_key,payload,addtime) VALUES (:k,'{\"v\":1,\"after\":0,\"ceiling\":0}',NOW()) ON DUPLICATE KEY UPDATE event_key=event_key",[':k'=>$key]));
+            $saved=\lib\Finance::row('SELECT payload FROM pre_funds_snapshot WHERE event_key=:k FOR UPDATE',[':k'=>$key]);
+            $cursor=json_decode($saved['payload'],true);
+            if(!is_array($cursor) || ($cursor['v']??null)!==1 || !isset($cursor['after'],$cursor['ceiling']) || !is_int($cursor['after']) || !is_int($cursor['ceiling']) || $cursor['after']<0 || $cursor['ceiling']<$cursor['after'])throw new \RuntimeException('分账调度游标损坏');
+            if($cursor['after']===$cursor['ceiling']){
+                $last=\lib\Finance::row('SELECT id FROM pre_psorder ORDER BY id DESC LIMIT 1');
+                $cursor['after']=0;
+                $cursor['ceiling']=$last?(int)$last['id']:0;
+            }
+            // No status predicate or JOIN here: LIMIT bounds actual business rows visited,
+            // including completed/orphaned orders. Missing receivers cannot pin the cursor.
+            $rows=\lib\Finance::checked($DB->query('SELECT id,status FROM pre_psorder FORCE INDEX (PRIMARY) WHERE id>:after AND id<=:ceiling ORDER BY id ASC LIMIT 100',[':after'=>$cursor['after'],':ceiling'=>$cursor['ceiling']]))->fetchAll(\PDO::FETCH_ASSOC);
+            $ids=[];
+            foreach($rows as $row){
+                $cursor['after']=(int)$row['id'];
+                if(in_array((int)$row['status'],[1,5,6],true))$ids[]=(int)$row['id'];
+                if(count($ids)===10)break;
+            }
+            if(count($ids)<10 && count($rows)<100)$cursor['after']=$cursor['ceiling'];
+            \lib\Finance::checked($DB->update('funds_snapshot',['payload'=>json_encode($cursor,JSON_THROW_ON_ERROR)],['event_key'=>$key]));
+            return $ids;
+        });
     }
 
     //处理一个订单分账任务
@@ -134,6 +167,8 @@ class CommUtil
     public static function operate($id,$action=null){
         global $DB;
         try {
+            $current=$DB->find('psorder','*',['id'=>$id]);
+            if($current && (int)$current['status']===6)return self::reversal($id,'return');
             if($DB->db->inTransaction()) throw new \RuntimeException('外部资金调用须独立提交intent');
             $claim=\lib\Finance::transaction(function() use($DB,$id,$action){
                 $o=\lib\Finance::row('SELECT * FROM pre_psorder WHERE id=:id FOR UPDATE',[':id'=>$id]);
@@ -166,7 +201,12 @@ class CommUtil
                 elseif(($r['code']??-9)==0) self::confirm($id,1,$extra);
                 else return ['code'=>-2,'msg'=>'分账结果未确认，仅可查询原交易'];
             }else{
-                $r=$model->query($trade,$v['api_trade_no'],$row['settle_no']);
+                if($model instanceof Wxpay || $model instanceof Alipay){
+                    $expected=ReceiverState::expected($v['ordermoney'],$v['info']);
+                    if(array_sum($expected)!==\lib\Finance::cents($v['money']))throw new \RuntimeException('分账总金额不符快照');
+                    $r=$model->query($trade,$v['api_trade_no'],$row['settle_no'],$expected);
+                    ReceiverState::save('psquery:'.$id,['v'=>1,'expected'=>$expected,'result'=>$r]);
+                }else $r=$model->query($trade,$v['api_trade_no'],$row['settle_no']);
                 if(($r['code']??-1)==0 && ($r['status']??0)==1) self::confirm($id,2);
                 elseif(($r['code']??-1)==0 && ($r['status']??0)==2) self::confirm($id,3,['result'=>$r['reason']??'分账失败，禁止盲目重试']);
             }
@@ -181,7 +221,7 @@ class CommUtil
             $claim=\lib\Finance::transaction(function() use($DB,$id,$action){
                 $o=\lib\Finance::row('SELECT * FROM pre_psorder WHERE id=:id FOR UPDATE',[':id'=>$id]);
                 if(!$o)throw new \RuntimeException('分账不存在');
-                if(($action=='return' && $o['status']!=2) || ($action=='unfreeeze' && $o['status']!=0))throw new \RuntimeException('当前状态不能回退/取消');
+                if(($action=='return' && !in_array((int)$o['status'],[2,6],true)) || ($action=='unfreeeze' && $o['status']!=0))throw new \RuntimeException('当前状态不能回退/取消');
                 self::snapshot($id,$action==='unfreeeze');
                 \lib\Finance::checked($DB->update('psorder',['status'=>$action=='return'?6:7,'result'=>'回退/取消intent已提交，结果待核对'],['id'=>$id]));
                 return $o;
@@ -192,7 +232,15 @@ class CommUtil
             $model=self::getModel($channel);
             if(!$model)throw new \RuntimeException('分账通道不存在');
             $trade=$v['trade_no'];
-            $r=$action=='return'?$model->return($trade,$v['api_trade_no'],$row['settle_no'],json_decode($row['rdata']??'[]',true)?:[]):$model->unfreeeze($trade,$v['api_trade_no']);
+            if($action==='return' && (int)$claim['status']===6 && !($model instanceof Wxpay))throw new \RuntimeException('该通道未实现回退查询，禁止重放');
+            if($action==='return' && $model instanceof Wxpay){
+                $expected=ReceiverState::expected($v['ordermoney'],$v['info']);
+                    if(array_sum($expected)!==\lib\Finance::cents($v['money']))throw new \RuntimeException('分账总金额不符快照');
+                $rdata=json_decode($row['rdata']??'[]',true);
+                $check=[];foreach($rdata?:[] as $r)$check[]=['account'=>(string)$r['account'],'amount'=>\lib\Finance::cents($r['money']),'state'=>'SUCCESS'];
+                if(ReceiverState::aggregate($expected,$check,'account',true,'SUCCESS','FAIL','state')['status']!==1)throw new \RuntimeException('回退接收方不符快照');
+            }
+            $r=$action=='return'?$model->return($trade,$v['api_trade_no'],$row['settle_no'],json_decode($row['rdata']??'[]',true)?:[], (int)$claim['status']===6):$model->unfreeeze($trade,$v['api_trade_no']);
             if(($r['code']??-1)!=0)return ['code'=>-2,'msg'=>'回退/取消结果待核对，禁止重复调用'];
             \lib\Finance::transaction(function() use($DB,$id,$action,$row,$channel){
                 $o=\lib\Finance::row('SELECT * FROM pre_psorder WHERE id=:id FOR UPDATE',[':id'=>$id]);

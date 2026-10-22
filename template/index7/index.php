@@ -329,7 +329,7 @@ if(!defined('IN_CRONLITE'))exit();
       </div>
     </div>
   </footer>
-  <script src="<?php echo $cdnpublic?>jquery/1.12.4/jquery.min.js"></script>
+  <script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
   <script src="<?php echo $cdnpublic?>twitter-bootstrap/4.6.2/js/bootstrap.bundle.min.js"></script>
   <script src="<?php echo STATIC_ROOT?>js/owl.carousel.min.js"></script>
   <script src="<?php echo STATIC_ROOT?>js/aos.js"></script>

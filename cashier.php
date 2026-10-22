@@ -112,7 +112,7 @@ if(checkwechat()){
     <p> <?php echo htmlspecialchars((string)($sitename?$sitename:$conf['sitename']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')?></p>
 </div>
 
-<script src="<?php echo $cdnpublic?>jquery/1.12.4/jquery.min.js"></script>
+<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
 <script type="text/javascript">
 $(document).ready(function(){
 	$(".types li").click(function(){

@@ -56,7 +56,7 @@ $codename = !empty($userrow['codename'])?$userrow['codename']:$userrow['username
 </div>
 </div>
 </div>
-<script src="<?php echo $cdnpublic?>jquery/1.12.4/jquery.min.js"></script>
+<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
 <script src="//open.mobile.qq.com/sdk/qqapi.js?_bid=152"></script>
 <script src="js/close.js"></script>
 <script>

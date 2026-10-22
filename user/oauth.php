@@ -167,8 +167,8 @@ if(isset($_GET['bind'])){
 </div>
 </div>
 </div>
-<script src="<?php echo $cdnpublic?>jquery/3.4.1/jquery.min.js"></script>
-<script src="<?php echo $cdnpublic?>twitter-bootstrap/3.4.1/js/bootstrap.min.js"></script>
+<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
+<script src="/assets/vendor/twitter-bootstrap/3.4.1-epay.1/js/bootstrap.js"></script>
 <script>
 function jump(){
 	var url = <?php echo json_encode($code_url, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)?>;

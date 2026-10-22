@@ -156,17 +156,20 @@ class xorpay_plugin
 	static public function notify(){
 		global $channel, $order;
 
+		// Form fields must be nonempty strings before concatenation or verification.
+		foreach (['aoid', 'order_id', 'pay_price', 'pay_time', 'sign'] as $field) {
+			if (!isset($_POST[$field]) || !is_string($_POST[$field]) || $_POST[$field] === '') {
+				return ['type'=>'html','data'=>'fail'];
+			}
+		}
 		$sign = md5($_POST['aoid'].$_POST['order_id'].$_POST['pay_price'].$_POST['pay_time'].$channel['appkey']);
 
-		if(isset($_POST['aoid']) && $sign===$_POST["sign"]){
-			$out_trade_no = daddslashes($_POST['order_id']);
+		if(hash_equals($sign, $_POST['sign'])){
 			$api_trade_no = daddslashes($_POST['aoid']);
-			$money = $_POST['pay_price'];
-			$data = json_decode($_POST['detail'], true);
-			$buyer = $data['buyer'];
-
-			if ($out_trade_no == TRADE_NO && round($money,2)==round($order['realmoney'],2)) {
-				processNotify($order, $api_trade_no, $buyer);
+			// XorPay signs only the four fields above, not detail/more or buyer.
+			// Never promote unsigned metadata to the accounting buyer identity.
+			if ($_POST['order_id'] === (string)TRADE_NO && epay_callback_money_match($_POST['pay_price'], $order['realmoney'])) {
+				processNotify($order, $api_trade_no);
 			}
 			return ['type'=>'html','data'=>'success'];
 		}else{

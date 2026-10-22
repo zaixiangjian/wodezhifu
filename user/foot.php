@@ -11,7 +11,7 @@
 
 </div>
 
-<script src="<?php echo $cdnpublic?>jquery/3.4.1/jquery.min.js"></script>
+<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
 <script>
 if (window.jQuery && window.EPAY_CSRF_TOKEN) {
   $.ajaxSetup({headers: {'X-CSRF-Token': window.EPAY_CSRF_TOKEN}});
@@ -22,7 +22,7 @@ if (window.jQuery && window.EPAY_CSRF_TOKEN) {
   });
 }
 </script>
-<script src="<?php echo $cdnpublic?>twitter-bootstrap/3.4.1/js/bootstrap.min.js"></script>
+<script src="/assets/vendor/twitter-bootstrap/3.4.1-epay.1/js/bootstrap.js"></script>
 <script src="./assets/js/ui-load.js"></script>
 <script src="./assets/js/ui-jp.config.js"></script>
 <script src="./assets/js/ui-jp.js"></script>

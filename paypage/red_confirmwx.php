@@ -59,7 +59,7 @@ if(!defined('IN_CRONLITE'))exit();
     </div>
 </div>
 </div>
-<script src="<?php echo $cdnpublic?>jquery/1.12.4/jquery.min.js"></script>
+<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
 <script src="//res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
 <script>
 document.body.addEventListener('touchmove', function (event) {

@@ -357,7 +357,7 @@ if(!defined('IN_CRONLITE'))exit();
       </div>
     </div>
   </footer>
-  <script src="<?php echo $cdnpublic?>jquery/3.4.1/jquery.min.js"></script>
+  <script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
   <script src="<?php echo $cdnpublic?>twitter-bootstrap/4.6.2/js/bootstrap.bundle.min.js"></script>
   <script src="<?php echo $cdnpublic?>jquery.scrollbar/0.2.11/jquery.scrollbar.min.js"></script>
   <script src="<?php echo STATIC_ROOT?>js/jquery-scrollLock.min.js"></script>

@@ -24,8 +24,8 @@ if($admin_cdnpublic==1){
   <link href="../assets/css/bootstrap-table.css?v=1" rel="stylesheet"/>
   <link href="<?php echo $cdnpublic?>font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet"/>
   <script src="<?php echo $cdnpublic?>modernizr/2.8.3/modernizr.min.js"></script>
-  <script src="<?php echo $cdnpublic?>jquery/3.4.1/jquery.min.js"></script>
-  <script src="<?php echo $cdnpublic?>twitter-bootstrap/3.4.1/js/bootstrap.min.js"></script>
+  <script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
+  <script src="/assets/vendor/twitter-bootstrap/3.4.1-epay.1/js/bootstrap.js"></script>
   <?php if($islogin==1){?><meta name="csrf-token" content="<?php echo htmlspecialchars(csrf_token('admin'), ENT_QUOTES, 'UTF-8')?>"><?php }?>
   <script>
   window.EPAY_CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '';

@@ -16,8 +16,8 @@ if(!defined('IN_CRONLITE'))exit();
 <link rel="stylesheet"href="<?php echo STATIC_ROOT?>css/common.css">
 <link rel="stylesheet"href="<?php echo STATIC_ROOT?>css/index-top.css">
 <!--[if IE 9 ]><style type="text/css">#ie9{ display:block; }</style><![endif]-->
-<script src="<?php echo $cdnpublic?>jquery/1.12.4/jquery.min.js"></script>
-<script src="<?php echo $cdnpublic?>twitter-bootstrap/3.4.1/js/bootstrap.min.js"></script>
+<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
+<script src="/assets/vendor/twitter-bootstrap/3.4.1-epay.1/js/bootstrap.js"></script>
 <link rel="stylesheet"type="text/css"href="<?php echo STATIC_ROOT?>css/index.css"/>
 </head>
 <body>

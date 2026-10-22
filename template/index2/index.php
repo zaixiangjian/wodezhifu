@@ -15,7 +15,7 @@ if(!defined('IN_CRONLITE'))exit();
 <link href="<?php echo STATIC_ROOT?>css/index960.css" rel="stylesheet" type="text/css" />
 <link href="<?php echo STATIC_ROOT?>css/index720.css" rel="stylesheet" type="text/css" />
 <link rel="stylesheet" href="<?php echo STATIC_ROOT?>css/aos.css">
-<script src="<?php echo $cdnpublic?>jquery/3.4.1/jquery.min.js"></script>
+<script src="/assets/vendor/jquery/3.7.1/jquery.min.js"></script>
 <script src="<?php echo STATIC_ROOT?>js/aos.js"></script>
 <script src="<?php echo STATIC_ROOT?>js/main.js"></script>
 <!--[if lt IE 9]>
